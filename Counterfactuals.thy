@@ -87,6 +87,29 @@ begin
 abbreviation possible_worlds :: \<open>'world \<Rightarrow> 'world set\<close> where
   \<open>possible_worlds w \<equiv> \<Union> (S w)\<close>
 
+abbreviation sphere_order :: \<open>'world \<Rightarrow> 'world set rel\<close> where
+  \<open>sphere_order w \<equiv> {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subseteq> s2}\<close>
+
+lemma sphere_direction:
+  assumes \<open>s1 \<in> S w\<close> \<open>s2 \<in> S w\<close>
+  shows \<open>(\<not> s2 \<subset> s1) = (s1 \<subseteq> s2)\<close>
+  using assms sphere_system unfolding nested_spheres_def by blast
+
+lemma sphere_ordering_total:
+  \<open>total_on (S w) (sphere_order w)\<close>
+  using sphere_system unfolding nested_spheres_def total_on_def by blast
+
+lemma sphere_ordering_linear:
+  \<open>linear_order_on (S w) (sphere_order w)\<close>
+proof -
+  have \<open>antisym (sphere_order w)\<close>
+    unfolding antisym_def by fastforce
+  then have \<open>partial_order_on (S w) (sphere_order w)\<close>
+    unfolding partial_order_on_def preorder_on_def refl_on_def' trans_def by blast
+  then show ?thesis 
+    unfolding linear_order_on_def using sphere_ordering_total ..
+qed
+
 primrec is_true_at :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
     \<open>(\<lbrakk>Falsef\<rbrakk>w) = False\<close> |
     \<open>(\<lbrakk>Atom a\<rbrakk>w) = interpretations w a\<close> |
@@ -97,6 +120,9 @@ primrec is_true_at :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\
       (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws)))\<close>
 
 lemma double_negation[simp]: \<open>(\<lbrakk>~~(~~\<phi>)\<rbrakk>w) = \<lbrakk>\<phi>\<rbrakk>w\<close> by auto
+
+abbreviation permitting_sphere :: \<open>'a formula \<Rightarrow> 'world set \<Rightarrow> bool\<close> where
+  \<open>permitting_sphere \<phi> s \<equiv> \<exists>w \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<close>
 
 text \<open>The four cases that might arise for a counterfactual (p. 16f.):
   Vacuous truth, non-vacuous truth, falsity with opposite true, and falsity with opposite false\<close>
@@ -111,8 +137,8 @@ end
 
 subsection \<open>The But-if-party Example\<close>
 
-text
-\<open>Lewis motivates the need for variably strict conditionals (p. 10, p. 18) with the idea that
+text \<open>
+Lewis motivates the need for variably strict conditionals (p. 10, p. 18) with the idea that
 one should be able to model “but if” sequences. He gives different examples. We reproduce the
 party example:
 
@@ -145,6 +171,128 @@ end
 
 subsection \<open>The Limit Assumption\<close>
 
+text \<open>
+In \<section> 1.4, Lewis gives an alternative characterization of counterfactuals under the assumption
+that there are “smallest spheres” for every formula to be true and thus a “well-ordering” of the
+sphere inclusion relation.
+
+However, he rejects this approach on page 20, arguing that the space of possible worlds actually
+should rather be dense (i.e. for a world, there are arbitrarily similar, but different worlds).
+\<close>
+
+text \<open>The least permitting sphere for a formula (if such a notion makes sense)\<close>
+definition (in counterfactuals) smallest_sphere :: \<open>'world \<Rightarrow> 'a formula \<Rightarrow> 'world set\<close>
+  where \<open>smallest_sphere w \<phi> \<equiv>
+    if \<exists>s \<in> S w. permitting_sphere \<phi> s then
+      (SOME s. s \<in> S w \<and>
+        permitting_sphere \<phi> s \<and>
+        (\<forall>s' \<in> S w. permitting_sphere \<phi> s' \<longrightarrow> s \<subseteq> s'))
+    else {}\<close>
+
+locale counterfactuals_limit_assumption = counterfactuals +
+  assumes wf_spheres: \<open>wf {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subset> s2}\<close>
+begin
+
+lemma wellfounded_smallest_sphere:
+  assumes
+    some_sphere: \<open>permitting_sphere \<phi> s\<close>  \<open>s \<in> S w\<close>
+  shows 
+    \<open>smallest_sphere w \<phi> \<in> S w \<and> permitting_sphere \<phi> (smallest_sphere w \<phi>) \<and>
+      (\<forall>s' \<in> S w. permitting_sphere \<phi> s' \<longrightarrow> (smallest_sphere w \<phi>) \<subseteq> s')\<close> 
+proof -
+  from some_sphere have smallest_sphere_some:
+      \<open>smallest_sphere w \<phi> = (SOME s. s \<in> S w \<and>
+          permitting_sphere \<phi> s \<and>
+          (\<forall>s' \<in> S w. permitting_sphere \<phi> s' \<longrightarrow> s \<subseteq> s'))\<close>
+    unfolding smallest_sphere_def by auto
+  from assms wf_spheres have
+    \<open>\<exists>s' \<in> {s. s \<in> S w \<and> permitting_sphere \<phi> s}. (\<forall>y. (y, s') \<in> {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subset> s2} 
+    \<longrightarrow> (y \<notin> {s. s \<in> S w \<and> permitting_sphere \<phi> s}))\<close>
+    unfolding wf_eq_minimal
+    by (metis (mono_tags, lifting) CollectI mem_Collect_eq)
+  then have
+    \<open>\<exists>s'\<in>{s \<in> S w. permitting_sphere \<phi> s}.
+      \<forall>s'' \<in> S w. permitting_sphere \<phi> s'' \<longrightarrow> \<not>(s'' \<subset> s')\<close> by auto
+  then have
+    \<open>\<exists>s'\<in>{s \<in> S w. permitting_sphere \<phi> s}.
+      \<forall>s'' \<in> S w. permitting_sphere \<phi> s'' \<longrightarrow> s' \<subseteq> s''\<close>
+    using sphere_direction by (metis (no_types, lifting) CollectD)
+  then have
+    \<open>\<exists>s. s \<in> S w \<and> permitting_sphere \<phi> s \<and> (\<forall>s'\<in>S w. permitting_sphere \<phi> s' \<longrightarrow> s \<subseteq> s')\<close>
+    by auto
+  from someI_ex[OF this] show ?thesis
+    unfolding smallest_sphere_some by blast
+qed
+
+lemma vacuous_smallest_sphere:
+  assumes
+    no_sphere: \<open>\<not> (\<exists>s \<in> S w. permitting_sphere \<phi> s)\<close>
+  shows 
+    \<open>smallest_sphere w \<phi> \<in> S w \<and> (\<forall>s' \<in> S w. permitting_sphere \<phi> s' \<longrightarrow> (smallest_sphere w \<phi>) \<subseteq> s')\<close> 
+proof -
+  from no_sphere have smallest_sphere_some:
+      \<open>smallest_sphere w \<phi> = {}\<close>
+    unfolding smallest_sphere_def by auto
+  then show ?thesis
+    using sphere_system union_closed_spheres_def by force
+qed
+
+lemma smallest_sphere_is_least_permitting:
+  assumes
+    some_sphere: \<open>permitting_sphere \<phi> s\<close>  \<open>s \<in> S w\<close>
+  shows \<open>smallest_sphere w \<phi> \<subseteq> s\<close>
+  using  wellfounded_smallest_sphere[OF assms] some_sphere by blast
+
+text \<open>p. 20: “a counterfactual is true at \<open>i\<close> if and only if the consequent
+  holds at every antecedent-world closest to \<open>i\<close>”\<close>
+lemma counterfactual_smallest_sphere_def:
+  \<open>(\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w) = (\<forall>wa \<in> smallest_sphere w \<phi>. (\<lbrakk>\<phi>\<rbrakk>wa) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>wa)\<close>
+proof safe
+  fix wa
+  assume wa_closest: \<open>wa \<in> smallest_sphere w \<phi>\<close> \<open>\<lbrakk>\<phi>\<rbrakk>wa\<close>
+  assume \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  then have
+    \<open>(\<forall>s \<in> S w. \<not>(\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>)) \<or>
+    (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws))\<close> by simp
+  then show \<open>\<lbrakk>\<psi>\<rbrakk>wa\<close> 
+  proof safe
+    assume \<open>\<forall>s \<in> S w. \<not> (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>)\<close>
+    then show \<open>\<lbrakk>\<psi>\<rbrakk>wa\<close> using \<open>wa \<in> smallest_sphere w \<phi>\<close> unfolding smallest_sphere_def by auto
+  next
+    fix s w\<phi>
+    assume
+      \<open>s \<in> S w\<close> \<open>\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws\<close>
+      \<open>w\<phi> \<in> s\<close> \<open>\<lbrakk>\<phi>\<rbrakk>w\<phi>\<close>
+    moreover then have \<open>smallest_sphere w \<phi> \<subseteq> s\<close>
+      using smallest_sphere_is_least_permitting wf_spheres by blast
+    ultimately show \<open>\<lbrakk>\<psi>\<rbrakk>wa\<close> using wa_closest by blast
+  qed
+next
+  assume wa\<phi>\<psi>: \<open>\<forall>wa \<in> smallest_sphere w \<phi>. (\<lbrakk>\<phi>\<rbrakk>wa) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>wa\<close>
+  show \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  proof (cases \<open>smallest_sphere w \<phi> = {}\<close>)
+    case True
+    then show ?thesis using wellfounded_smallest_sphere by fastforce
+  next
+    case False
+    then have \<open>smallest_sphere w \<phi> \<in> S w \<and> permitting_sphere \<phi> (smallest_sphere w \<phi>)\<close>
+      using wellfounded_smallest_sphere unfolding smallest_sphere_def by meson
+    then show ?thesis using wellfounded_smallest_sphere using wa\<phi>\<psi> by auto
+  qed
+qed
+
+end
+
+text \<open>
+Lewis closes \<section> 1.4 stating: “When there is no smallest antecedent-permitting sphere, our truth
+conditions amount to this: if there are antecedent-permitting spheres, then as we take smaller
+and smaller ones without end, eventually we come to ones in which the consequent holds at every
+antecedent-world.” (p. 21)
+
+The wording seems a little confusing. Apparently he has a (inverted?) version of the mathematical
+“eventually” in mind. With a temporal reading of “eventually,” the sentence would be wrong.\<close>
+
+subsection \<open>Comparative Similarity\<close>
 
 context counterfactuals
 begin
@@ -173,63 +321,6 @@ abbreviation more_similar_than_c
 
 interpretation preorder \<open>at_least_as_similar_as_c\<close> \<open>more_similar_than_c\<close>
   by (standard, auto, meson in_mono nested_spheres_def sphere_system)
-end
-
-context counterfactuals
-begin
-
-definition closest_worlds :: \<open>'world \<Rightarrow> 'a formula \<Rightarrow> 'world set\<close>
-  where \<open>closest_worlds w \<phi> \<equiv>
-    {wc. wc \<in> possible_worlds w \<and> (\<lbrakk>\<phi>\<rbrakk>wc) \<and>
-      \<not>(\<exists>wss. more_similar_than w wss wc \<and> (\<lbrakk>\<phi>\<rbrakk>wss))}\<close>
-
-(*
-lemma
-  assumes  \<open>wf {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subset> s2}\<close>
-  shows \<open>wf {(w1, w2). w1 \<in> possible_worlds w \<and> w2 \<in> possible_worlds w \<and> more_similar_than w w1 w2}\<close>
-proof -
-  have \<open> (\<lambda> ) {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subset> s2}\<close>
-*)
-
-lemma
-  fixes w \<phi> \<psi>
-  assumes
-    \<open>wf {(w1, w2). w1 \<in> possible_worlds w \<and> w2 \<in> possible_worlds w \<and> more_similar_than w w1 w2}\<close>
-  shows
-    \<open>(\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w) = (\<forall>wa \<in> closest_worlds w \<phi>. \<lbrakk>\<psi>\<rbrakk>wa)\<close>
-proof safe
-  fix wa
-  assume \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close> \<open>wa \<in> closest_worlds w \<phi>\<close>
-  then have
-    \<open>(\<forall>s \<in> S w. \<not>(\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>)) \<or>
-    (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws))\<close> by simp
-  then show \<open>\<lbrakk>\<psi>\<rbrakk>wa\<close> 
-  proof safe
-    assume \<open>\<forall>s \<in> S w. \<not> (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>)\<close>
-    then show \<open>\<lbrakk>\<psi>\<rbrakk>wa\<close> using \<open>wa \<in> closest_worlds w \<phi>\<close> unfolding closest_worlds_def by auto
-  next
-    fix s w\<phi>
-    assume
-      \<open>s \<in> S w\<close> \<open>\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws\<close>
-      \<open>w\<phi> \<in> s\<close> \<open>\<lbrakk>\<phi>\<rbrakk>w\<phi>\<close>
-    then show \<open>\<lbrakk>\<psi>\<rbrakk>wa\<close>
-      using sphere_system \<open>wa \<in> closest_worlds w \<phi>\<close>
-      unfolding closest_worlds_def nested_spheres_def by blast
-  qed
-next
-  assume \<open>\<forall>wa\<in>closest_worlds w \<phi>. \<lbrakk> \<psi> \<rbrakk>wa\<close>
-  then show \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close> unfolding closest_worlds_def 
-
-(*   
-      by (metis dual_order.order_iff_strict mem_Collect_eq subset_iff)
-   by (metis mem_Collect_eq nested_spheres_def sphere_system subset_iff subset_not_subset_eq system_of_spheres_def)*)
-
-  (*using assms unfolding closest_worlds_def
-  by (smt CollectD basic_trans_rules(31) is_true_at.simps(4) nested_spheres_def sphere_system subset_not_subset_eq system_of_spheres_def)
-
-    by (smt CollectD counterfactuals.closest_worlds_def counterfactuals_axioms nested_spheres_def sphere_system subsetD subset_not_subset_eq system_of_spheres_def)
-*)
-
 end
 
 end
