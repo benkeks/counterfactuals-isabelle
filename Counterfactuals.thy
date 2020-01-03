@@ -11,7 +11,27 @@ text \<open>
   - sphere:        s (Lewis: S, T)
 \<close>
 
-subsection \<open>Counterfactuals in terms of sphere systems\<close>
+subsection \<open>A language of counterfactuals\<close>
+
+datatype ('aa) formula =
+  Falsef (\<open>\<bottom>\<close>) | Atom 'aa |
+  Impl \<open>'aa formula\<close> \<open>'aa formula\<close> (\<open>_ \<rightarrow> _\<close> 27) |
+  Would \<open>'aa formula\<close> \<open>'aa formula\<close> (\<open>_ \<box>\<rightarrow> _\<close> 25)
+
+abbreviation Neg :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>~~_\<close> [40] 40)
+  where \<open>~~\<phi> \<equiv> \<phi> \<rightarrow> \<bottom>\<close>
+abbreviation Or :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
+  where \<open>Or \<phi> \<psi> \<equiv> (~~\<phi>) \<rightarrow> \<psi>\<close>
+abbreviation And :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
+  where \<open>And \<phi> \<psi> \<equiv> ~~Or (~~\<phi>) (~~\<psi>)\<close>
+
+text \<open>The might counterfactual is treated as derived from the would counterfactual. (p. 2 and p. 21)\<close>
+definition Might :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<diamond>\<rightarrow> _\<close> 25)
+  where [simp]: \<open>\<phi>\<diamond>\<rightarrow> \<psi> \<equiv> ~~(\<phi> \<box>\<rightarrow> ~~\<psi>)\<close>
+\<comment>\<open>We do not use \<open>abbreviation\<close> here, as we sometimes want to talk about \<open>\<diamond>\<rightarrow>\<close> explicitly. For
+ the most time however, we are fine with it being simplified away automatically.\<close>
+
+subsection \<open>Abstract sphere systems\<close>
 
 text \<open>p. 14: “the set \<open>{i}\<close> having \<open>i\<close> as its only member belongs to \<open>$\<^sub>i\<close>.”\<close>
 definition centered_spheres :: \<open>'world set set \<Rightarrow> 'world \<Rightarrow> bool\<close>
@@ -64,18 +84,6 @@ lemma closures_trivial_for_finite_spheres:
   by (metis Sup_empty Union_in_chain finite_subset subset_chain_def subset_iff, 
       simp add: Inter_in_chain finite_subset subset_chain_def subset_iff)
 
-datatype ('aa) formula =
-  Falsef | Atom 'aa |
-  Impl \<open>'aa formula\<close> \<open>'aa formula\<close> (\<open>_ \<rightarrow> _\<close> 27) |
-  Would \<open>'aa formula\<close> \<open>'aa formula\<close> (\<open>_ \<box>\<rightarrow> _\<close> 25)
-
-abbreviation Neg :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>~~_\<close> [40] 40)
-  where \<open>~~\<phi> \<equiv> \<phi> \<rightarrow> Falsef\<close>
-abbreviation Or :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
-  where \<open>Or \<phi> \<psi> \<equiv> (~~\<phi>) \<rightarrow> \<psi>\<close>
-abbreviation And :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
-  where \<open>And \<phi> \<psi> \<equiv> ~~Or (~~\<phi>) (~~\<psi>)\<close>
-
 locale counterfactuals = 
   fixes
     S :: \<open>'world \<Rightarrow> 'world set set\<close> and
@@ -84,8 +92,15 @@ locale counterfactuals =
     sphere_system: \<open>system_of_spheres S\<close>
 begin
 
-abbreviation possible_worlds :: \<open>'world \<Rightarrow> 'world set\<close> where
-  \<open>possible_worlds w \<equiv> \<Union> (S w)\<close>
+subsection \<open>Concrete spheres systems\<close>
+
+\<comment>\<open>The name ‘outermost sphere’ is introduced on p. 22\<close>
+abbreviation outermost_sphere :: \<open>'world \<Rightarrow> 'world set\<close> where
+  \<open>outermost_sphere w \<equiv> \<Union> (S w)\<close>
+
+\<comment>\<open>“\<open>\<Union>$\<^sub>i\<close> is itself a sphere around \<open>i\<close> (p. 22)\<close>
+lemma \<open>outermost_sphere w \<in> (S w)\<close>
+  using sphere_system union_closed_spheres_def by auto
 
 abbreviation sphere_order :: \<open>'world \<Rightarrow> 'world set rel\<close> where
   \<open>sphere_order w \<equiv> {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subseteq> s2}\<close>
@@ -110,8 +125,10 @@ proof -
     unfolding linear_order_on_def using sphere_ordering_total ..
 qed
 
+subsection \<open>Counterfactual semantics defined in terms of sphere systems\<close>
+
 primrec is_true_at :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
-    \<open>(\<lbrakk>Falsef\<rbrakk>w) = False\<close> |
+    \<open>(\<lbrakk>\<bottom>\<rbrakk>w) = False\<close> |
     \<open>(\<lbrakk>Atom a\<rbrakk>w) = interpretations w a\<close> |
     \<open>(\<lbrakk>\<phi>\<rightarrow>\<psi>\<rbrakk>w)   = (\<not>(\<lbrakk>\<phi>\<rbrakk>w) \<or> \<lbrakk>\<psi>\<rbrakk>w)\<close>|
     \<comment>\<open>Definition of counterfactuals from p. 16\<close>
@@ -133,6 +150,7 @@ lemma four_counterfactual_cases:
      ((\<lbrakk>~~(\<phi> \<box>\<rightarrow> \<psi>)\<rbrakk>w) \<and> \<lbrakk>\<phi> \<box>\<rightarrow> ~~\<psi>\<rbrakk>w) \<or>
      ((\<lbrakk>~~(\<phi> \<box>\<rightarrow> \<psi>)\<rbrakk>w) \<and> \<lbrakk>~~(\<phi> \<box>\<rightarrow> ~~\<psi>)\<rbrakk>w)\<close>
   using is_true_at.simps by blast
+
 end
 
 subsection \<open>The But-if-party Example\<close>
@@ -291,6 +309,76 @@ antecedent-world.” (p. 21)
 
 The wording seems a little confusing. Apparently he has a (inverted?) version of the mathematical
 “eventually” in mind. With a temporal reading of “eventually,” the sentence would be wrong.\<close>
+
+subsection \<open>‘Might’ counterfactuals\<close>
+
+text \<open>Derived truth conditions for ‘might’, p. 21\<close>
+lemma (in counterfactuals) might_characterization:
+  \<open>(\<lbrakk>\<phi>\<diamond>\<rightarrow>\<psi>\<rbrakk>w) = (
+      (\<exists>s \<in> S w. \<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and>
+      (\<forall>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<longrightarrow> (\<exists>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<and>\<lbrakk>\<psi>\<rbrakk>ws)))\<close>
+  by auto
+\<comment>\<open>This is not quite in line with everyday English:
+“If spheres were flat, earth might be flat.” and “If spheres were flat, earth would be flat.”
+seem to include the same statement or non-statement about the possibility of worlds where
+spheres are flat...\<close>
+
+text \<open>“Under the Limit assumption, we could restate the derived truth conditions for ‘might’...”\<close>
+lemma (in counterfactuals_limit_assumption) might_characterization_limited:
+  \<open>(\<lbrakk>\<phi>\<diamond>\<rightarrow>\<psi>\<rbrakk>w) = (\<exists>wa \<in> smallest_sphere w \<phi>. (\<lbrakk>\<phi>\<rbrakk>wa) \<and> \<lbrakk>\<psi>\<rbrakk>wa)\<close>
+  using counterfactual_smallest_sphere_def unfolding Might_def by (metis is_true_at.simps(1,3))
+
+lemma (in counterfactuals) non_vacuously_would_implies_might:
+  assumes 
+    \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+    \<open>permitting_sphere \<phi> s\<close> \<open>s \<in> S w\<close>
+  shows \<open>\<lbrakk>\<phi> \<diamond>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  using assms by (auto, meson in_mono psubsetD sphere_direction)
+\<comment>\<open>This is analogous to the fact that non-empty all-quantification implies existential quanatification.\<close>
+
+lemma (in counterfactuals) neither_would_nor_wouldnt_still_might:
+  assumes 
+    \<open>\<not>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close> \<open>\<not>\<lbrakk>\<phi> \<box>\<rightarrow> ~~\<psi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<phi> \<diamond>\<rightarrow> \<psi>\<rbrakk>w\<close> \<open>\<lbrakk>\<phi> \<diamond>\<rightarrow> ~~\<psi>\<rbrakk>w\<close>
+  using assms by auto
+\<comment>\<open>“this is the case in which \<open>\<psi>\<close> is true at some of the closest \<open>\<phi>\<close> worlds and \<open>~~\<psi>\<close>
+  is true at others of them.” (p. 21)\<close>
+
+text \<open>Pp. 22f. reinstate the standard modalities (in Kripke style).\<close>
+
+definition Necessary :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<box> _\<close> 20)
+  where [simp]: \<open>\<box>\<phi> \<equiv> (~~\<phi>) \<box>\<rightarrow> \<bottom>\<close>
+
+definition Possibly :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<diamond> _\<close> 20)
+  where [simp]: \<open>\<diamond>\<phi> \<equiv> \<phi> \<diamond>\<rightarrow> ~~\<bottom>\<close>
+
+lemma (in counterfactuals) modal_duality:
+  \<open>(\<lbrakk>\<box>\<phi>\<rbrakk>w) = \<lbrakk>~~(\<diamond>~~\<phi>)\<rbrakk>w\<close>
+  \<open>(\<lbrakk>\<diamond>\<phi>\<rbrakk>w) = \<lbrakk>~~(\<box>~~\<phi>)\<rbrakk>w\<close>
+  by auto
+
+lemma (in counterfactuals) Necessary_ext_def:
+   \<open>(\<lbrakk>\<box>\<phi>\<rbrakk>w) = (\<forall>s \<in> S w. \<forall>wo \<in> s. \<lbrakk>\<phi>\<rbrakk>wo)\<close>
+  by auto
+
+lemma (in counterfactuals) Possibly_ext_def:
+   \<open>(\<lbrakk>\<diamond>\<phi>\<rbrakk>w) = (\<exists>s \<in> S w. \<exists>wo \<in> s. \<lbrakk>\<phi>\<rbrakk>wo)\<close>
+  by auto
+
+lemma (in counterfactuals) Necessary_outermost_def:
+   \<open>(\<lbrakk>\<box>\<phi>\<rbrakk>w) = (\<forall>wo \<in> outermost_sphere w. \<lbrakk>\<phi>\<rbrakk>wo)\<close>
+  by auto
+
+lemma (in counterfactuals) Possibly_outermost_def:
+   \<open>(\<lbrakk>\<diamond>\<phi>\<rbrakk>w) = (\<exists>wo \<in> outermost_sphere w. \<lbrakk>\<phi>\<rbrakk>wo)\<close>
+  by auto
+\<comment>\<open>(That's why Lewis calls them “outer modalities.”)\<close>
+
+text \<open>“the outer strict conditional implies the counterfactual”\<close>
+lemma (in counterfactuals) outer_strict_conditional:
+  assumes \<open>\<lbrakk>\<box>(\<phi>\<rightarrow>\<psi>)\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w\<close>
+  using assms by auto
 
 subsection \<open>Comparative Similarity\<close>
 
