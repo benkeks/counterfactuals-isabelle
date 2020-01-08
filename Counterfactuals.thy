@@ -11,7 +11,7 @@ text \<open>
   - sphere:        s (Lewis: S, T)
 \<close>
 
-subsection \<open>A language of counterfactuals\<close>
+subsection \<open>A language of counterfactuals (\<section> 1.1)\<close>
 
 datatype ('aa) formula =
   Falsef (\<open>\<bottom>\<close>) | Atom 'aa |
@@ -58,14 +58,21 @@ definition intersection_closed_spheres :: \<open>'world set set \<Rightarrow> bo
   where
     \<open>intersection_closed_spheres S\<^sub>w \<equiv> \<forall>\<S> \<subseteq> S\<^sub>w. \<S> \<noteq> {} \<longrightarrow> \<Inter>\<S> \<in> S\<^sub>w\<close>
 
-text \<open>\<open>centered system of spheres\<close> from p. 14\<close>
+text \<open>\<open>system of spheres\<close> (without centering from p. 14\<close>
 abbreviation system_of_spheres :: \<open>('world \<Rightarrow> 'world set set) \<Rightarrow> bool\<close>
   where
     \<open>system_of_spheres S \<equiv> \<forall>w.
-      centered_spheres (S w) w \<and>
       nested_spheres (S w) \<and>
       union_closed_spheres (S w) \<and>
       intersection_closed_spheres (S w)\<close>
+
+
+text \<open>\<open>centered system of spheres\<close> from p. 14\<close>
+abbreviation centered_system_of_spheres :: \<open>('world \<Rightarrow> 'world set set) \<Rightarrow> bool\<close>
+  where
+    \<open>centered_system_of_spheres S \<equiv>
+      system_of_spheres S \<and>
+      (\<forall>w. centered_spheres (S w) w)\<close>
 
 text \<open>p. 15 “Note that conditions (2) and (3) of closure under union and intersection are
   automatically satisfied when there are only finitely many spheres around \<open>i\<close>, ...”\<close>
@@ -99,8 +106,19 @@ abbreviation outermost_sphere :: \<open>'world \<Rightarrow> 'world set\<close> 
   \<open>outermost_sphere w \<equiv> \<Union> (S w)\<close>
 
 \<comment>\<open>“\<open>\<Union>$\<^sub>i\<close> is itself a sphere around \<open>i\<close> (p. 22)\<close>
-lemma \<open>outermost_sphere w \<in> (S w)\<close>
+lemma outermost_sphere_is_sphere: \<open>outermost_sphere w \<in> (S w)\<close>
   using sphere_system union_closed_spheres_def by auto
+
+\<comment>\<open>The name ‘innermost sphere’ is introduced on p. 29\<close>
+abbreviation innermost_sphere :: \<open>'world \<Rightarrow> 'world set\<close> where
+  \<open>innermost_sphere w \<equiv> \<Inter> (S w - {{}})\<close>
+
+lemma innermost_sphere_is_sphere_for_nontrivial_systems:
+  assumes \<open>s0 \<in> S w\<close> \<open>s0 \<noteq> {}\<close>
+  shows \<open>innermost_sphere w \<in> (S w)\<close>
+  using assms sphere_system unfolding intersection_closed_spheres_def
+  by (smt Diff_cancel Diff_eq_empty_iff Diff_insert2 Diff_insert_absorb
+      insert_Diff intersection_closed_spheres_def singleton_insert_inj_eq sphere_system)
 
 abbreviation sphere_order :: \<open>'world \<Rightarrow> 'world set rel\<close> where
   \<open>sphere_order w \<equiv> {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subseteq> s2}\<close>
@@ -125,7 +143,7 @@ proof -
     unfolding linear_order_on_def using sphere_ordering_total ..
 qed
 
-subsection \<open>Counterfactual semantics defined in terms of sphere systems\<close>
+subsection \<open>Counterfactual semantics defined in terms of sphere systems (\<section> 1.3)\<close>
 
 primrec is_true_at :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
     \<open>(\<lbrakk>\<bottom>\<rbrakk>w) = False\<close> |
@@ -187,7 +205,7 @@ begin
     by auto
 end
 
-subsection \<open>The Limit Assumption\<close>
+subsection \<open>The Limit Assumption (\<section> 1.4)\<close>
 
 text \<open>
 In \<section> 1.4, Lewis gives an alternative characterization of counterfactuals under the assumption
@@ -310,7 +328,7 @@ antecedent-world.” (p. 21)
 The wording seems a little confusing. Apparently he has a (inverted?) version of the mathematical
 “eventually” in mind. With a temporal reading of “eventually,” the sentence would be wrong.\<close>
 
-subsection \<open>‘Might’ counterfactuals\<close>
+subsection \<open>‘Might’ counterfactuals (\<section> 1.5)\<close>
 
 text \<open>Derived truth conditions for ‘might’, p. 21\<close>
 lemma (in counterfactuals) might_characterization:
@@ -380,10 +398,94 @@ lemma (in counterfactuals) outer_strict_conditional:
   shows \<open>\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w\<close>
   using assms by auto
 
-subsection \<open>Comparative Similarity\<close>
+subsection \<open>Impossible antecedents and strength of counterfactuals (\<section> 1.6)\<close>
+
+text \<open> (p. 26)\<close>
+definition Might_weak :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<diamond>\<Rightarrow> _\<close> 25)
+  where [simp]: \<open>\<phi> \<diamond>\<Rightarrow> \<psi> \<equiv> ((\<phi> \<diamond>\<rightarrow> \<phi>) \<rightarrow> (\<phi> \<diamond>\<rightarrow> \<psi>))\<close>
+
+text \<open>Implicit dual definition (p. 25)\<close>
+definition Would_strong :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<box>\<Rightarrow> _\<close> 25)
+  where [simp]: \<open>\<phi> \<box>\<Rightarrow> \<psi> \<equiv> ~~(\<phi> \<diamond>\<Rightarrow> ~~\<psi>)\<close>
 
 context counterfactuals
 begin
+
+lemma might_weak_truth_def:
+  \<open>(\<lbrakk>\<phi> \<diamond>\<Rightarrow> \<psi>\<rbrakk>w) =
+      (\<forall>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<longrightarrow> (\<exists>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<and>\<lbrakk>\<psi>\<rbrakk>ws))\<close>
+  by auto
+
+lemma would_strong_truth_def:
+  \<open>(\<lbrakk>\<phi> \<box>\<Rightarrow> \<psi>\<rbrakk>w) =
+      (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws))\<close>
+  by auto
+
+text \<open> (p. 26)\<close>
+lemma would_by_strong_def:
+  \<open>(\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w) =
+      (\<lbrakk>(\<phi> \<box>\<Rightarrow> \<phi>) \<rightarrow> (\<phi> \<box>\<Rightarrow> \<psi>)\<rbrakk>w)\<close>
+  by auto
+end
+
+subsection \<open>Actual antecedents (\<section> 1.7)\<close>
+
+locale counterfactuals_centered = counterfactuals +
+  assumes centered_spheres: \<open>(\<forall>w. centered_spheres (S w) w)\<close>
+begin
+
+lemma conditional_collapse_for_actual_antecedent:
+  assumes \<open>\<lbrakk>\<phi>\<rbrakk>w\<close>
+  shows
+    \<open>(\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w) = \<lbrakk>\<psi>\<rbrakk>w\<close>
+proof -
+  from assms have
+    \<open>\<exists>w\<phi> \<in> {w}. \<lbrakk>\<phi>\<rbrakk>w\<phi>\<close> \<open>(\<forall>ws \<in> {w}. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws) = \<lbrakk>\<psi>\<rbrakk>w\<close>
+    by (blast+)
+  moreover have
+    \<open>{w} \<in> S w\<close>
+    using centered_spheres unfolding centered_spheres_def by blast
+  ultimately show ?thesis
+    unfolding is_true_at.simps
+    using singleton_iff subsetD psubsetD sphere_direction
+    by smt
+qed
+
+lemma conditional_collapse_for_actual_antecedent_general:
+  assumes \<open>\<lbrakk>\<phi>\<rbrakk>w\<close>
+  shows
+    \<open>((\<lbrakk>\<phi> \<box>\<Rightarrow> \<psi>\<rbrakk>w) = \<lbrakk>\<psi>\<rbrakk>w) \<and>
+    ((\<lbrakk>\<phi> \<diamond>\<Rightarrow> \<psi>\<rbrakk>w)  = \<lbrakk>\<psi>\<rbrakk>w) \<and>
+    ((\<lbrakk>\<phi> \<diamond>\<rightarrow> \<psi>\<rbrakk>w)  = \<lbrakk>\<psi>\<rbrakk>w) \<and>
+    ((\<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk>w)   = \<lbrakk>\<psi>\<rbrakk>w)\<close>
+  unfolding Might_def Might_weak_def would_strong_truth_def
+  using conditional_collapse_for_actual_antecedent[OF assms]  is_true_at.simps(1,3,4)
+  by smt
+
+text \<open>“In short: counterfactuals with true antecedents reduce to material conditionals.” (p. 26)\<close>
+lemma counterfactuals_are_material_conditional_for_actual_antecedent:
+  assumes \<open>\<lbrakk>\<phi>\<rbrakk>w\<close>
+  shows \<open>{\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w, \<lbrakk>\<phi> \<box>\<Rightarrow> \<psi>\<rbrakk>w, \<lbrakk>\<phi> \<diamond>\<Rightarrow> \<psi>\<rbrakk>w, \<lbrakk>\<phi> \<diamond>\<rightarrow> \<psi>\<rbrakk>w} = {\<lbrakk>\<phi>\<rightarrow>\<psi>\<rbrakk>w}\<close>
+  using assms conditional_collapse_for_actual_antecedent
+    conditional_collapse_for_actual_antecedent_general by auto
+
+end
+
+text \<open>\<open>weakly centered system of spheres\<close> with assumption (W) from page 29\<close>
+locale counterfactuals_weakly_centered = counterfactuals +
+  assumes weakly_centered_spheres: \<open>\<forall>w. (\<forall>s \<in> (S w). s \<noteq> {} \<longrightarrow> w \<in> s) \<and> (\<exists>s \<in> (S w). s \<noteq> {})\<close>
+begin
+
+text \<open>“The world \<open>i\<close> itself is one of the closest worlds to \<open>i\<close>; but there may be others as well” (p. 29)\<close>
+lemma innermost_sphere_contains_center:
+    \<open>w \<in> innermost_sphere w\<close>
+  using weakly_centered_spheres by blast
+end
+
+context counterfactuals
+begin
+
+subsection \<open>Comparative Similarity\<close>
 
 \<comment>\<open>p. 48 Section 2.3 Comparative Similarity\<close>
 abbreviation at_least_as_similar_as :: \<open>'world \<Rightarrow> 'world \<Rightarrow> 'world \<Rightarrow> bool\<close>
@@ -396,10 +498,9 @@ interpretation preorder \<open>at_least_as_similar_as w\<close> \<open>more_simi
 
 end
 
-locale counterfactuals_centered = counterfactuals S
+locale counterfactuals_centered2 = counterfactuals S
   for S :: \<open>'world \<Rightarrow> 'world set set\<close> +
   fixes aw :: \<open>'world\<close>
-  assumes \<open>centered_spheres (S aw) aw\<close>
 begin
 
 abbreviation at_least_as_similar_as_c
