@@ -24,6 +24,8 @@ abbreviation Or :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'a
   where \<open>Or \<phi> \<psi> \<equiv> (~~\<phi>) \<rightarrow> \<psi>\<close>
 abbreviation And :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
   where \<open>And \<phi> \<psi> \<equiv> ~~Or (~~\<phi>) (~~\<psi>)\<close>
+abbreviation Truef :: \<open>'aa formula\<close> (\<open>\<top>\<close>)
+  where \<open>\<top> \<equiv> ~~\<bottom>\<close>
 
 text \<open>The might counterfactual is treated as derived from the would counterfactual. (p. 2 and p. 21)\<close>
 definition Might :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<diamond>\<rightarrow> _\<close> 25)
@@ -113,12 +115,16 @@ lemma outermost_sphere_is_sphere: \<open>outermost_sphere w \<in> (S w)\<close>
 abbreviation innermost_sphere :: \<open>'world \<Rightarrow> 'world set\<close> where
   \<open>innermost_sphere w \<equiv> \<Inter> (S w - {{}})\<close>
 
-lemma innermost_sphere_is_sphere_for_nontrivial_systems:
-  assumes \<open>s0 \<in> S w\<close> \<open>s0 \<noteq> {}\<close>
+lemma innermost_in_outermost_sphere:
+  assumes non_trivial_system: \<open>s0 \<in> S w\<close> \<open>s0 \<noteq> {}\<close>
+  shows \<open>innermost_sphere w \<subseteq> outermost_sphere w\<close>
+using non_trivial_system by auto
+
+lemma innermost_sphere_is_sphere:
+  assumes non_trivial_system:  \<open>s0 \<in> S w\<close> \<open>s0 \<noteq> {}\<close>
   shows \<open>innermost_sphere w \<in> (S w)\<close>
-  using assms sphere_system unfolding intersection_closed_spheres_def
-  by (smt Diff_cancel Diff_eq_empty_iff Diff_insert2 Diff_insert_absorb
-      insert_Diff intersection_closed_spheres_def singleton_insert_inj_eq sphere_system)
+  using non_trivial_system sphere_system unfolding intersection_closed_spheres_def
+  by (meson Diff_eq_empty_iff Diff_subset in_mono singletonD)
 
 abbreviation sphere_order :: \<open>'world \<Rightarrow> 'world set rel\<close> where
   \<open>sphere_order w \<equiv> {(s1, s2). s1 \<in> S w \<and> s2 \<in> S w \<and> s1 \<subseteq> s2}\<close>
@@ -203,6 +209,28 @@ begin
     \<open>is_true_at (~~((And (Atom Otto) (And (Atom Anna) (Atom Waldo))) \<box>\<rightarrow> ~~(Atom LivelyParty))) 0\<close>
     using is_true_at.simps party_interpretation_def 
     by auto
+
+text \<open>The example is also an instance of the fallacy of transitivity from page 32.\<close>
+lemma fallacy_of_transitivity:
+  assumes \<open>\<And> \<chi> \<phi> \<psi> w.
+            is_true_at (\<chi> \<box>\<rightarrow> \<phi>) w \<Longrightarrow>
+            is_true_at (\<phi> \<box>\<rightarrow> \<psi>) w 
+          \<Longrightarrow> is_true_at (\<chi> \<box>\<rightarrow> \<psi>) w\<close>
+  shows \<open>False\<close>
+proof -
+  have
+    \<open>is_true_at ((Atom Anna) \<box>\<rightarrow> (Atom Otto)) 0\<close>
+    \<open>is_true_at ((Atom Otto) \<box>\<rightarrow> (Atom LivelyParty)) 0\<close>
+    using is_true_at.simps party_interpretation_def 
+    by auto
+  hence 
+    \<open>is_true_at ((Atom Anna) \<box>\<rightarrow> (Atom LivelyParty)) 0\<close>
+    using assms by blast
+  thus \<open>False\<close>
+    using is_true_at.simps party_interpretation_def 
+    by auto
+qed
+
 end
 
 subsection \<open>The Limit Assumption (\<section> 1.4)\<close>
@@ -459,8 +487,19 @@ lemma conditional_collapse_for_actual_antecedent_general:
     ((\<lbrakk>\<phi> \<diamond>\<rightarrow> \<psi>\<rbrakk>w)  = \<lbrakk>\<psi>\<rbrakk>w) \<and>
     ((\<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk>w)   = \<lbrakk>\<psi>\<rbrakk>w)\<close>
   unfolding Might_def Might_weak_def would_strong_truth_def
-  using conditional_collapse_for_actual_antecedent[OF assms]  is_true_at.simps(1,3,4)
+  using conditional_collapse_for_actual_antecedent[OF assms] is_true_at.simps(1,3,4)
   by smt
+
+
+lemma conditional_collapse_for_actual_antecedent_general_unfold:
+  assumes \<open>\<lbrakk>\<phi>\<rbrakk>w\<close>
+  shows
+    \<open>(\<lbrakk>\<phi> \<box>\<Rightarrow> \<psi>\<rbrakk>w) = \<lbrakk>\<psi>\<rbrakk>w\<close>
+    \<open>(\<lbrakk>\<phi> \<diamond>\<Rightarrow> \<psi>\<rbrakk>w)  = \<lbrakk>\<psi>\<rbrakk>w\<close>
+    \<open>(\<lbrakk>\<phi> \<diamond>\<rightarrow> \<psi>\<rbrakk>w)  = \<lbrakk>\<psi>\<rbrakk>w\<close>
+    \<open>(\<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk>w)   = \<lbrakk>\<psi>\<rbrakk>w\<close>
+  using assms conditional_collapse_for_actual_antecedent_general by auto
+
 
 text \<open>“In short: counterfactuals with true antecedents reduce to material conditionals.” (p. 26)\<close>
 lemma counterfactuals_are_material_conditional_for_actual_antecedent:
@@ -469,18 +508,92 @@ lemma counterfactuals_are_material_conditional_for_actual_antecedent:
   using assms conditional_collapse_for_actual_antecedent
     conditional_collapse_for_actual_antecedent_general by auto
 
+lemma counterfactual_implies_material_conditional:
+  assumes \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk>w\<close>
+  using assms conditional_collapse_for_actual_antecedent by (simp, blast)
+
+lemma counterfactual_modus_ponens:
+  assumes \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close> \<open>\<lbrakk>\<phi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<psi>\<rbrakk>w\<close>
+  using assms conditional_collapse_for_actual_antecedent by blast
+
 end
 
 text \<open>\<open>weakly centered system of spheres\<close> with assumption (W) from page 29\<close>
 locale counterfactuals_weakly_centered = counterfactuals +
   assumes weakly_centered_spheres: \<open>\<forall>w. (\<forall>s \<in> (S w). s \<noteq> {} \<longrightarrow> w \<in> s) \<and> (\<exists>s \<in> (S w). s \<noteq> {})\<close>
-begin
 
-text \<open>“The world \<open>i\<close> itself is one of the closest worlds to \<open>i\<close>; but there may be others as well” (p. 29)\<close>
-lemma innermost_sphere_contains_center:
+text \<open>“The world \<open>i\<close> itself is one of the closest worlds to \<open>i\<close>;
+  but there may be others as well” (p. 29)\<close>
+lemma (in counterfactuals_weakly_centered) innermost_sphere_contains_center:
     \<open>w \<in> innermost_sphere w\<close>
   using weakly_centered_spheres by blast
-end
+
+text \<open>Definition of inner necessity and possibility (p. 30)\<close>
+
+definition InnerlyNecessary :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<box>\<bullet> _\<close> 20)
+  where [simp]: \<open>\<box>\<bullet>\<phi> \<equiv> \<top> \<box>\<Rightarrow> \<phi>\<close>
+
+definition InnerlyPossibly :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<diamond>\<bullet> _\<close> 20)
+  where [simp]: \<open>\<diamond>\<bullet>\<phi> \<equiv> \<top> \<diamond>\<Rightarrow> \<phi>\<close>
+
+lemma (in counterfactuals) inner_modality_duality:
+  \<open>(\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w) = (\<lbrakk>~~(\<diamond>\<bullet> ~~\<phi>)\<rbrakk>w)\<close>
+  by simp
+
+lemma (in counterfactuals) InnerlyNecessary_ext_def:
+   \<open>(\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w) = (\<exists>s \<in> S w. s \<noteq> {} \<and> (\<forall>wo \<in> s. \<lbrakk>\<phi>\<rbrakk>wo))\<close>
+  by auto
+
+lemma (in counterfactuals) InnerlyPossibly_ext_def:
+   \<open>(\<lbrakk>\<diamond>\<bullet>\<phi>\<rbrakk>w) = (\<forall>s \<in> S w.  s \<noteq> {} \<longrightarrow> (\<exists>wo \<in> s. \<lbrakk>\<phi>\<rbrakk>wo))\<close>
+  by auto
+
+lemma (in counterfactuals_weakly_centered) InnerlyNecessary_innermost_def:
+   \<open>(\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w) = (\<forall>wi \<in> innermost_sphere w. \<lbrakk>\<phi>\<rbrakk>wi)\<close>
+  unfolding InnerlyNecessary_ext_def
+  using weakly_centered_spheres innermost_sphere_is_sphere
+  by (auto, metis all_not_in_conv innermost_sphere_contains_center)
+
+lemma (in counterfactuals_weakly_centered) InnerlyPossibly_innermost_def:
+   \<open>(\<lbrakk>\<diamond>\<bullet>\<phi>\<rbrakk>w) = (\<exists>wi \<in> innermost_sphere w. \<lbrakk>\<phi>\<rbrakk>wi)\<close>
+  unfolding InnerlyPossibly_ext_def
+  using weakly_centered_spheres innermost_sphere_is_sphere
+  by (auto, metis innermost_sphere_contains_center insert_absorb insert_not_empty)
+
+lemma (in counterfactuals_weakly_centered) inner_necessity_weaker:
+  assumes \<open>\<lbrakk>\<box>\<phi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w\<close>
+  using assms innermost_in_outermost_sphere weakly_centered_spheres by fastforce
+
+lemma (in counterfactuals_weakly_centered) inner_possibiliy_stronger:
+  assumes \<open>\<lbrakk>\<diamond>\<bullet>\<phi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<diamond>\<phi>\<rbrakk>w\<close>
+  using assms innermost_in_outermost_sphere weakly_centered_spheres by fastforce
+
+lemma (in counterfactuals_weakly_centered) weakly_centered_simple_inner_modalities:
+  shows 
+    \<open>(\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w) = \<lbrakk>\<top> \<box>\<rightarrow> \<phi>\<rbrakk>w\<close>
+    \<open>(\<lbrakk>\<diamond>\<bullet>\<phi>\<rbrakk>w) = \<lbrakk>\<top> \<diamond>\<rightarrow> \<phi>\<rbrakk>w\<close>
+  using inner_necessity_weaker is_true_at.simps(3)
+  unfolding  InnerlyNecessary_def Necessary_ext_def would_by_strong_def
+  by (metis) (auto simp add: weakly_centered_spheres)
+
+\<comment>\<open>first sentence of page 31\<close>
+lemma (in counterfactuals_centered) centered_trivial_inner_modalities:
+  shows 
+    \<open>(\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w) = \<lbrakk>\<phi>\<rbrakk>w\<close>
+    \<open>(\<lbrakk>\<diamond>\<bullet>\<phi>\<rbrakk>w) = \<lbrakk>\<phi>\<rbrakk>w\<close>
+  unfolding  InnerlyNecessary_def InnerlyPossibly_def
+  using conditional_collapse_for_actual_antecedent_general is_true_at.simps(3)
+  by blast+
+
+text \<open>The Counterfactual Fallacies (\<section> 1.8) cannot really be rendered in the locale framework,
+  as there are instantiations where they are not fallacious. However, the fallacy of transitivity
+  is already present in the But-if-party example, {@thm \<open>party_example.fallacy_of_transitivity\<close>}.\<close>
+
+text \<open>TODO: continue discussion of \<section> 1.8\<close>
 
 context counterfactuals
 begin
