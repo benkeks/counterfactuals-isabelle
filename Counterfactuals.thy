@@ -589,11 +589,59 @@ lemma (in counterfactuals_centered) centered_trivial_inner_modalities:
   using conditional_collapse_for_actual_antecedent_general is_true_at.simps(3)
   by blast+
 
-text \<open>The Counterfactual Fallacies (\<section> 1.8) cannot really be rendered in the locale framework,
+text \<open>The Counterfactual Fallacies (\<section> 1.8) cannot really be rendered in Isabelle's locale framework,
   as there are instantiations where they are not fallacious. However, the fallacy of transitivity
-  is already present in the But-if-party example, {@thm \<open>party_example.fallacy_of_transitivity\<close>}.\<close>
+  is already present in the But-if-party example, @{thm party_example.fallacy_of_transitivity}.\<close>
 
-text \<open>TODO: continue discussion of \<section> 1.8\<close>
+lemma (in counterfactuals) counterfactual_biimplication:
+  assumes \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close> \<open>\<lbrakk>\<psi> \<box>\<rightarrow> \<phi>\<rbrakk>w\<close>
+  shows \<open>(\<exists>s \<in> S w. permitting_sphere \<phi> s \<and> (\<forall> w \<in> s. (\<lbrakk>\<phi>\<rbrakk>w) \<longleftrightarrow> \<lbrakk>\<psi>\<rbrakk>w)) \<or>
+    \<not>(\<exists>s \<in> S w. permitting_sphere \<phi> s)\<close>
+  using assms
+  by (simp, smt sphere_direction subsetD subset_not_subset_eq)
+
+text \<open>(inference pattern at the end of p. 33)\<close>
+lemma (in counterfactuals) counterfactual_weak_transitivity:
+  assumes \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<chi>\<rbrakk>w\<close> \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<phi>\<rbrakk>w\<close> \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+proof -
+  from assms(1,2) have
+    \<open>(\<exists>s \<in> S w. permitting_sphere \<phi> s \<and> (\<forall> w \<in> s. (\<lbrakk>\<phi>\<rbrakk>w) \<longleftrightarrow> \<lbrakk>\<chi>\<rbrakk>w)) \<or>
+    \<not>(\<exists>s \<in> S w. permitting_sphere \<phi> s)\<close>
+    using counterfactual_biimplication by simp
+  then show ?thesis
+  proof safe
+    fix s wa
+    assume subassms: \<open>s \<in> S w\<close> \<open>\<forall>w \<in> s. (\<lbrakk>\<phi>\<rbrakk>w) = \<lbrakk>\<chi>\<rbrakk>w\<close> \<open>wa \<in> s\<close> \<open>\<lbrakk>\<phi>\<rbrakk>wa\<close>
+    with assms(3) obtain s' where s'_spec:
+      \<open>s' \<in> S w \<and> s' \<subseteq> s \<and> permitting_sphere \<phi> s' \<and> (\<forall>ws \<in> s'. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws)\<close>
+      using sphere_system sphere_direction unfolding nested_spheres_def
+      by (simp, meson psubsetD)
+    with subassms(2) have \<open>permitting_sphere \<chi> s'\<close> \<open>\<forall>ws \<in> s'. (\<lbrakk>\<chi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws\<close> by blast+
+    with s'_spec show ?thesis by auto
+  next
+    assume \<open>\<not>(\<exists>s \<in> S w. permitting_sphere \<phi> s)\<close>
+    with assms(2) have \<open>\<not>(\<exists>s \<in> S w. permitting_sphere \<chi> s)\<close> by auto
+    thus ?thesis by simp
+  qed
+qed
+
+text \<open>(second inference pattern of p. 34)\<close>
+lemma (in counterfactuals) counterfactual_special_transitivity:
+  assumes \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<phi>\<rbrakk>w\<close> \<open>\<lbrakk>(And \<chi> \<phi>) \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+proof -
+  have \<open>\<lbrakk>(And \<chi> \<phi>) \<box>\<rightarrow> \<chi>\<rbrakk>w\<close> using assms by auto
+  moreover from assms(1) have \<open>\<lbrakk>\<chi> \<box>\<rightarrow> (And \<chi> \<phi>)\<rbrakk>w\<close> by simp
+  ultimately show ?thesis using assms(2) counterfactual_weak_transitivity by blast
+qed
+
+lemma (in counterfactuals) counterfactual_inference_by_weakening_the_consequent:
+  assumes \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<phi>\<rbrakk>w\<close> \<open>\<lbrakk>\<box>(\<phi> \<rightarrow> \<psi>)\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  using assms by auto
+
+text \<open>TODO: continue discussion of \<section> 1.8 at fallacy of contraposition\<close>
 
 context counterfactuals
 begin
