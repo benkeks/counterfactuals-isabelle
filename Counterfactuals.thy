@@ -231,6 +231,22 @@ proof -
     by auto
 qed
 
+text \<open>The example is an instance of the fallacy of contraposition from page 35.\<close>
+lemma fallacy_of_contraposition:
+  assumes \<open>\<And> \<phi> \<psi>.
+            is_true_at (\<phi> \<box>\<rightarrow> \<psi>) w
+          \<Longrightarrow> is_true_at (~~\<psi> \<box>\<rightarrow> ~~\<phi>) w\<close>
+  shows \<open>False\<close>
+proof-
+  have \<open>is_true_at (Atom Otto \<box>\<rightarrow> ~~(Atom Anna)) w\<close>
+    using is_true_at.simps party_interpretation_def by simp
+  from assms[OF this] have \<open>is_true_at (Atom Anna \<box>\<rightarrow> ~~(Atom Otto)) w\<close>
+    unfolding is_true_at.simps by auto
+  also have \<open>is_true_at (Atom Anna \<box>\<rightarrow> ~~(Atom Otto)) w = False\<close>
+    using is_true_at.simps party_interpretation_def by simp
+  finally show \<open>False\<close> .
+qed
+
 end
 
 subsection \<open>The Limit Assumption (\<section> 1.4)\<close>
@@ -500,7 +516,6 @@ lemma conditional_collapse_for_actual_antecedent_general_unfold:
     \<open>(\<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk>w)   = \<lbrakk>\<psi>\<rbrakk>w\<close>
   using assms conditional_collapse_for_actual_antecedent_general by auto
 
-
 text \<open>“In short: counterfactuals with true antecedents reduce to material conditionals.” (p. 26)\<close>
 lemma counterfactuals_are_material_conditional_for_actual_antecedent:
   assumes \<open>\<lbrakk>\<phi>\<rbrakk>w\<close>
@@ -580,7 +595,13 @@ lemma (in counterfactuals_weakly_centered) weakly_centered_simple_inner_modaliti
   unfolding  InnerlyNecessary_def Necessary_ext_def would_by_strong_def
   by (metis) (auto simp add: weakly_centered_spheres)
 
+lemma (in counterfactuals_weakly_centered) counterfactual_implies_material_conditional:
+  assumes \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk>w\<close>
+  using assms using weakly_centered_spheres by auto
+
 \<comment>\<open>first sentence of page 31\<close>
+  
 lemma (in counterfactuals_centered) centered_trivial_inner_modalities:
   shows 
     \<open>(\<lbrakk>\<box>\<bullet>\<phi>\<rbrakk>w) = \<lbrakk>\<phi>\<rbrakk>w\<close>
@@ -588,6 +609,8 @@ lemma (in counterfactuals_centered) centered_trivial_inner_modalities:
   unfolding  InnerlyNecessary_def InnerlyPossibly_def
   using conditional_collapse_for_actual_antecedent_general is_true_at.simps(3)
   by blast+
+
+subsection \<open>Counterfactual inference patterns and fallacies (\<section> 1.8)\<close>
 
 text \<open>The Counterfactual Fallacies (\<section> 1.8) cannot really be rendered in Isabelle's locale framework,
   as there are instantiations where they are not fallacious. However, the fallacy of transitivity
@@ -641,7 +664,16 @@ lemma (in counterfactuals) counterfactual_inference_by_weakening_the_consequent:
   shows \<open>\<lbrakk>\<chi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close>
   using assms by auto
 
-text \<open>TODO: continue discussion of \<section> 1.8 at fallacy of contraposition\<close>
+\<comment>\<open>Page 36 states that the following modus tollens for counterfactuals is valid.
+The remark fails to mention that this is only the case assuming (at least weak)
+centering of the spheres. (The other inference patterns do not rely on this
+assumption.)\<close>
+lemma (in counterfactuals_weakly_centered) counterfactual_modus_tollens:
+  assumes \<open>\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w\<close> \<open>\<lbrakk>~~\<psi>\<rbrakk>w\<close>
+  shows \<open>\<lbrakk>~~\<phi>\<rbrakk>w\<close>
+  using assms counterfactual_implies_material_conditional
+  by (meson is_true_at.simps(3))
+
 
 context counterfactuals
 begin
