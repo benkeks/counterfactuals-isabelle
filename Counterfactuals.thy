@@ -665,7 +665,7 @@ lemma (in counterfactuals) counterfactual_inference_by_weakening_the_consequent:
   using assms by auto
 
 \<comment>\<open>Page 36 states that the following modus tollens for counterfactuals is valid.
-The remark fails to mention that this is only the case assuming (at least weak)
+The remark does not mention that this is only the case assuming (at least weak)
 centering of the spheres. (The other inference patterns do not rely on this
 assumption.)\<close>
 lemma (in counterfactuals_weakly_centered) counterfactual_modus_tollens:
@@ -674,10 +674,58 @@ lemma (in counterfactuals_weakly_centered) counterfactual_modus_tollens:
   using assms counterfactual_implies_material_conditional
   by (meson is_true_at.simps(3))
 
+subsection \<open>Potentialities (\<section> 1.9)\<close>
+
+text \<open>This section is largely concerned with the \<open>de re\<close> nature of many counterfactual
+statements. This means that they are talking about \<open>the same\<close> object in different
+worlds. The object name usually is fixed in the actual world.
+
+One instance are dispositions where “a thing has disposition D iff, subjected to test
+T, it would give response R” is analysed by Lewis (p. 38) as:\<close>
+
+definition (in counterfactuals) disposed_to :: 
+  \<open>('object \<Rightarrow> 'a formula) \<Rightarrow> ('object \<Rightarrow> 'a formula) \<Rightarrow> 'object \<Rightarrow> 'world \<Rightarrow> bool\<close>
+  where \<open>disposed_to test response x w \<equiv> \<lbrakk> test x \<box>\<rightarrow> response x \<rbrakk>w\<close>
+
+locale counterparts =
+  counterfactuals S interpretations for 
+    S :: \<open>'world \<Rightarrow> 'world set set\<close> and
+    interpretations :: \<open>'world \<Rightarrow> 'a \<Rightarrow> bool\<close> +
+  fixes
+    counterparts :: \<open>('world \<times> 'object) rel\<close>
+  assumes
+    \<comment>\<open>“anything is its own unique counterpart at its own world”\<close>
+    unique_self_counterpart:
+      \<open>((w,n), (w,n)) \<in> counterparts\<close>
+      \<open>((w,n), (w,n')) \<in> counterparts \<Longrightarrow> n = n'\<close>
+
+
+begin
+
+text \<open>“the abstract entities that exist alike from the standpoint of all world, but inhabit
+  none, are their own unique counterparts at all worlds”\<close>
+definition abstract_entity :: \<open>'object \<Rightarrow> bool\<close>
+  where \<open>abstract_entity n \<equiv>
+    \<forall>w1. \<forall>w2. ((w1,n), (w2,n)) \<in> counterparts \<and>
+      (\<forall>n'. (((w1,n), (w2,n')) \<in> counterparts \<or> ((w2,n), (w1,n')) \<in> counterparts)
+        \<longrightarrow> n = n')\<close>
+
+\<comment>\<open>TODO: find a way to encode the counterpart theory with Derefs  without
+  rewriting all of the counterfactual theory\<close>
+primrec is_true_at2 :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>x\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
+    \<open>(x\<lbrakk>\<bottom>\<rbrakk>w) = False\<close> |
+    \<open>(x\<lbrakk>Atom a\<rbrakk>w) = interpretations w a\<close> |
+    \<open>(x\<lbrakk>\<phi>\<rightarrow>\<psi>\<rbrakk>w)   = (\<not>(x\<lbrakk>\<phi>\<rbrakk>w) \<or> x\<lbrakk>\<psi>\<rbrakk>w)\<close>|
+    \<comment>\<open>Definition of counterfactuals from p. 16\<close>
+    \<open>(x\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w) = (
+      (\<forall>s \<in> S w. \<not>(\<exists>w\<phi> \<in> s. x\<lbrakk>\<phi>\<rbrakk>w\<phi>)) \<or>
+      (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. x\<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (x\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> x\<lbrakk>\<psi>\<rbrakk>ws)))\<close>
+
+end
+
 
 context counterfactuals
 begin
-
 subsection \<open>Comparative Similarity\<close>
 
 \<comment>\<open>p. 48 Section 2.3 Comparative Similarity\<close>
