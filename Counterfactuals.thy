@@ -13,22 +13,23 @@ text \<open>
 
 subsection \<open>A language of counterfactuals (\<section> 1.1)\<close>
 
-datatype ('aa) formula =
+datatype ('aa, 'oo) formula =
   Falsef (\<open>\<bottom>\<close>) | Atom 'aa |
-  Impl \<open>'aa formula\<close> \<open>'aa formula\<close> (\<open>_ \<rightarrow> _\<close> 27) |
-  Would \<open>'aa formula\<close> \<open>'aa formula\<close> (\<open>_ \<box>\<rightarrow> _\<close> 25)
+  CounterpartPred \<open>'oo \<Rightarrow> ('aa, 'oo) formula\<close> \<open>'oo\<close> |
+  Impl \<open>('aa, 'oo) formula\<close> \<open>('aa, 'oo) formula\<close> (\<open>_ \<rightarrow> _\<close> 27) |
+  Would \<open>('aa, 'oo) formula\<close> \<open>('aa, 'oo) formula\<close> (\<open>_ \<box>\<rightarrow> _\<close> 25)
 
-abbreviation Neg :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>~~_\<close> [40] 40)
+abbreviation Neg :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>~~_\<close> [40] 40)
   where \<open>~~\<phi> \<equiv> \<phi> \<rightarrow> \<bottom>\<close>
-abbreviation Or :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
+abbreviation Or :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close>
   where \<open>Or \<phi> \<psi> \<equiv> (~~\<phi>) \<rightarrow> \<psi>\<close>
-abbreviation And :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close>
+abbreviation And :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close>
   where \<open>And \<phi> \<psi> \<equiv> ~~Or (~~\<phi>) (~~\<psi>)\<close>
-abbreviation Truef :: \<open>'aa formula\<close> (\<open>\<top>\<close>)
+abbreviation Truef :: \<open>('aa, 'oo) formula\<close> (\<open>\<top>\<close>)
   where \<open>\<top> \<equiv> ~~\<bottom>\<close>
 
 text \<open>The might counterfactual is treated as derived from the would counterfactual. (p. 2 and p. 21)\<close>
-definition Might :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<diamond>\<rightarrow> _\<close> 25)
+definition Might :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>_ \<diamond>\<rightarrow> _\<close> 25)
   where [simp]: \<open>\<phi>\<diamond>\<rightarrow> \<psi> \<equiv> ~~(\<phi> \<box>\<rightarrow> ~~\<psi>)\<close>
 \<comment>\<open>We do not use \<open>abbreviation\<close> here, as we sometimes want to talk about \<open>\<diamond>\<rightarrow>\<close> explicitly. For
  the most time however, we are fine with it being simplified away automatically.\<close>
@@ -96,7 +97,8 @@ lemma closures_trivial_for_finite_spheres:
 locale counterfactuals = 
   fixes
     S :: \<open>'world \<Rightarrow> 'world set set\<close> and
-    interpretations :: \<open>'world \<Rightarrow> 'a \<Rightarrow> bool\<close>
+    interpretations :: \<open>'world \<Rightarrow> 'a \<Rightarrow> bool\<close> and
+    objects :: \<open>'o set\<close>
   assumes
     sphere_system: \<open>system_of_spheres S\<close>
 begin
@@ -151,18 +153,21 @@ qed
 
 subsection \<open>Counterfactual semantics defined in terms of sphere systems (\<section> 1.3)\<close>
 
-primrec is_true_at :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
+primrec is_true_at :: \<open>('a, 'o) formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
     \<open>(\<lbrakk>\<bottom>\<rbrakk>w) = False\<close> |
     \<open>(\<lbrakk>Atom a\<rbrakk>w) = interpretations w a\<close> |
     \<open>(\<lbrakk>\<phi>\<rightarrow>\<psi>\<rbrakk>w)   = (\<not>(\<lbrakk>\<phi>\<rbrakk>w) \<or> \<lbrakk>\<psi>\<rbrakk>w)\<close>|
     \<comment>\<open>Definition of counterfactuals from p. 16\<close>
     \<open>(\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w) = (
       (\<forall>s \<in> S w. \<not>(\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>)) \<or>
-      (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws)))\<close>
+      (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> \<lbrakk>\<psi>\<rbrakk>ws)))\<close> |
+    \<comment>\<open>This just interprets counterpart predicates (pp. 39ff.) with the identity for the
+      counterpart relation.\<close>
+    \<open>(\<lbrakk>CounterpartPred F obj\<rbrakk>w) = \<lbrakk>F obj\<rbrakk>w\<close>
 
 lemma double_negation[simp]: \<open>(\<lbrakk>~~(~~\<phi>)\<rbrakk>w) = \<lbrakk>\<phi>\<rbrakk>w\<close> by auto
 
-abbreviation permitting_sphere :: \<open>'a formula \<Rightarrow> 'world set \<Rightarrow> bool\<close> where
+abbreviation permitting_sphere :: \<open>('a, 'o) formula \<Rightarrow> 'world set \<Rightarrow> bool\<close> where
   \<open>permitting_sphere \<phi> s \<equiv> \<exists>w \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<close>
 
 text \<open>The four cases that might arise for a counterfactual (p. 16f.):
@@ -261,7 +266,7 @@ should rather be dense (i.e. for a world, there are arbitrarily similar, but dif
 \<close>
 
 text \<open>The least permitting sphere for a formula (if such a notion makes sense)\<close>
-definition (in counterfactuals) smallest_sphere :: \<open>'world \<Rightarrow> 'a formula \<Rightarrow> 'world set\<close>
+definition (in counterfactuals) smallest_sphere :: \<open>'world \<Rightarrow> ('a, 'o) formula \<Rightarrow> 'world set\<close>
   where \<open>smallest_sphere w \<phi> \<equiv>
     if \<exists>s \<in> S w. permitting_sphere \<phi> s then
       (SOME s. s \<in> S w \<and>
@@ -408,10 +413,10 @@ lemma (in counterfactuals) neither_would_nor_wouldnt_still_might:
 
 text \<open>Pp. 22f. reinstate the standard modalities (in Kripke style).\<close>
 
-definition Necessary :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<box> _\<close> 20)
+definition Necessary :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>\<box> _\<close> 20)
   where [simp]: \<open>\<box>\<phi> \<equiv> (~~\<phi>) \<box>\<rightarrow> \<bottom>\<close>
 
-definition Possibly :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<diamond> _\<close> 20)
+definition Possibly :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>\<diamond> _\<close> 20)
   where [simp]: \<open>\<diamond>\<phi> \<equiv> \<phi> \<diamond>\<rightarrow> ~~\<bottom>\<close>
 
 lemma (in counterfactuals) modal_duality:
@@ -445,11 +450,11 @@ lemma (in counterfactuals) outer_strict_conditional:
 subsection \<open>Impossible antecedents and strength of counterfactuals (\<section> 1.6)\<close>
 
 text \<open> (p. 26)\<close>
-definition Might_weak :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<diamond>\<Rightarrow> _\<close> 25)
+definition Might_weak :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>_ \<diamond>\<Rightarrow> _\<close> 25)
   where [simp]: \<open>\<phi> \<diamond>\<Rightarrow> \<psi> \<equiv> ((\<phi> \<diamond>\<rightarrow> \<phi>) \<rightarrow> (\<phi> \<diamond>\<rightarrow> \<psi>))\<close>
 
 text \<open>Implicit dual definition (p. 25)\<close>
-definition Would_strong :: \<open>'aa formula \<Rightarrow> 'aa formula \<Rightarrow> 'aa formula\<close> (\<open>_ \<box>\<Rightarrow> _\<close> 25)
+definition Would_strong :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>_ \<box>\<Rightarrow> _\<close> 25)
   where [simp]: \<open>\<phi> \<box>\<Rightarrow> \<psi> \<equiv> ~~(\<phi> \<diamond>\<Rightarrow> ~~\<psi>)\<close>
 
 context counterfactuals
@@ -547,10 +552,10 @@ lemma (in counterfactuals_weakly_centered) innermost_sphere_contains_center:
 
 text \<open>Definition of inner necessity and possibility (p. 30)\<close>
 
-definition InnerlyNecessary :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<box>\<bullet> _\<close> 20)
+definition InnerlyNecessary :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>\<box>\<bullet> _\<close> 20)
   where [simp]: \<open>\<box>\<bullet>\<phi> \<equiv> \<top> \<box>\<Rightarrow> \<phi>\<close>
 
-definition InnerlyPossibly :: \<open>'aa formula \<Rightarrow> 'aa formula\<close> (\<open>\<diamond>\<bullet> _\<close> 20)
+definition InnerlyPossibly :: \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>\<diamond>\<bullet> _\<close> 20)
   where [simp]: \<open>\<diamond>\<bullet>\<phi> \<equiv> \<top> \<diamond>\<Rightarrow> \<phi>\<close>
 
 lemma (in counterfactuals) inner_modality_duality:
@@ -683,43 +688,80 @@ worlds. The object name usually is fixed in the actual world.
 One instance are dispositions where “a thing has disposition D iff, subjected to test
 T, it would give response R” is analysed by Lewis (p. 38) as:\<close>
 
-definition (in counterfactuals) disposed_to :: 
-  \<open>('object \<Rightarrow> 'a formula) \<Rightarrow> ('object \<Rightarrow> 'a formula) \<Rightarrow> 'object \<Rightarrow> 'world \<Rightarrow> bool\<close>
-  where \<open>disposed_to test response x w \<equiv> \<lbrakk> test x \<box>\<rightarrow> response x \<rbrakk>w\<close>
 
-locale counterparts =
-  counterfactuals S interpretations for 
+locale counterparts = counterfactuals S interpretations objects
+  for
     S :: \<open>'world \<Rightarrow> 'world set set\<close> and
-    interpretations :: \<open>'world \<Rightarrow> 'a \<Rightarrow> bool\<close> +
+    interpretations :: \<open>'world \<Rightarrow> 'a \<Rightarrow> bool\<close> and
+    objects :: \<open>'o set\<close> +
   fixes
-    counterparts :: \<open>('world \<times> 'object) rel\<close>
+    counterparts :: \<open>('world \<times> 'o) rel\<close>
   assumes
     \<comment>\<open>“anything is its own unique counterpart at its own world”\<close>
     unique_self_counterpart:
       \<open>((w,n), (w,n)) \<in> counterparts\<close>
       \<open>((w,n), (w,n')) \<in> counterparts \<Longrightarrow> n = n'\<close>
-
-
 begin
 
-text \<open>“the abstract entities that exist alike from the standpoint of all world, but inhabit
+text \<open>“the abstract entities that exist alike from the standpoint of all worlds, but inhabit
   none, are their own unique counterparts at all worlds”\<close>
-definition abstract_entity :: \<open>'object \<Rightarrow> bool\<close>
+definition abstract_entity :: \<open>'o \<Rightarrow> bool\<close>
   where \<open>abstract_entity n \<equiv>
     \<forall>w1. \<forall>w2. ((w1,n), (w2,n)) \<in> counterparts \<and>
       (\<forall>n'. (((w1,n), (w2,n')) \<in> counterparts \<or> ((w2,n), (w1,n')) \<in> counterparts)
         \<longrightarrow> n = n')\<close>
 
-\<comment>\<open>TODO: find a way to encode the counterpart theory with Derefs  without
-  rewriting all of the counterfactual theory\<close>
-primrec is_true_at2 :: \<open>'a formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>x\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
-    \<open>(x\<lbrakk>\<bottom>\<rbrakk>w) = False\<close> |
-    \<open>(x\<lbrakk>Atom a\<rbrakk>w) = interpretations w a\<close> |
-    \<open>(x\<lbrakk>\<phi>\<rightarrow>\<psi>\<rbrakk>w)   = (\<not>(x\<lbrakk>\<phi>\<rbrakk>w) \<or> x\<lbrakk>\<psi>\<rbrakk>w)\<close>|
-    \<comment>\<open>Definition of counterfactuals from p. 16\<close>
-    \<open>(x\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w) = (
-      (\<forall>s \<in> S w. \<not>(\<exists>w\<phi> \<in> s. x\<lbrakk>\<phi>\<rbrakk>w\<phi>)) \<or>
-      (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. x\<lbrakk>\<phi>\<rbrakk>w\<phi>) \<and> (\<forall>ws \<in> s. (x\<lbrakk>\<phi>\<rbrakk>ws) \<longrightarrow> x\<lbrakk>\<psi>\<rbrakk>ws)))\<close>
+\<comment>\<open>This definition follows a \<open>dynamic scoping\<close> of counterparts: For nested counterfactuals,
+  one is talking about the counterpart of the counterpart.\<close>
+definition assignments :: \<open>('o \<Rightarrow> 'o option) \<Rightarrow> 'world \<Rightarrow> 'world \<Rightarrow> ('o \<Rightarrow> 'o option) set\<close> where
+  \<open>assignments \<Gamma> w1 w2 = {f.
+    \<forall>obj0. \<forall>obj1. \<forall>obj2.
+      ((\<Gamma> obj0 = Some obj1 \<and> Some obj2 = f obj0) \<longrightarrow> ((w1,obj1), (w2,obj2)) \<in> counterparts) \<and>
+      ((\<Gamma> obj0 = Some obj1 \<and> ((w1,obj1), (w2,obj2)) \<in> counterparts) \<longrightarrow> f obj0 \<noteq> None) }\<close>
+
+definition initialAssignment :: \<open>'world \<Rightarrow> ('o \<Rightarrow> 'o option)\<close> where
+  \<open>initialAssignment w obj \<equiv> if ((w,obj), (w,obj)) \<in> counterparts then Some obj else None\<close>
+\<comment>\<open>TODO: for now, everything is defined everywhere, isnt it?\<close>
+
+end
+
+\<comment>\<open>Definition of counterfactuals with counterpart from p. 42\<close>
+primrec (in counterparts) is_true_at_objs ::
+  \<open>('a, 'o) formula \<Rightarrow> 'world \<Rightarrow> ('o \<Rightarrow> 'o option) \<Rightarrow> bool\<close> (\<open>x\<lbrakk> _ \<rbrakk>_|_\<close> [20] 55)
+  where
+    \<open>(x\<lbrakk>\<bottom>\<rbrakk>w|\<Gamma>) = False\<close> |
+    \<open>(x\<lbrakk>Atom a\<rbrakk>w|\<Gamma>) = interpretations w a\<close> |
+    \<open>(x\<lbrakk>\<phi>\<rightarrow>\<psi>\<rbrakk>w|\<Gamma>)   = (\<not>(x\<lbrakk>\<phi>\<rbrakk>w|\<Gamma>) \<or> x\<lbrakk>\<psi>\<rbrakk>w|\<Gamma>)\<close> |
+    \<comment>\<open>Definition of counterfactuals with counterpart from p. 42\<close>
+    \<open>(x\<lbrakk>\<phi>\<box>\<rightarrow>\<psi>\<rbrakk>w|\<Gamma>) = (
+      (\<forall>s \<in> S w. \<not>(\<exists>w\<phi> \<in> s. \<exists>\<Gamma>' \<in> assignments \<Gamma> w w\<phi>. x\<lbrakk>\<phi>\<rbrakk>w\<phi>|\<Gamma>')) \<or>
+      (\<exists>s \<in> S w.  (\<exists>w\<phi> \<in> s. \<exists>\<Gamma>' \<in> assignments \<Gamma> w w\<phi>. x\<lbrakk>\<phi>\<rbrakk>w\<phi>|\<Gamma>') \<and> 
+                  (\<forall>ws \<in> s. \<forall>\<Gamma>' \<in> assignments \<Gamma> w ws. (x\<lbrakk>\<phi>\<rbrakk>ws|\<Gamma>') \<longrightarrow> x\<lbrakk>\<psi>\<rbrakk>ws|\<Gamma>')))\<close> |
+    \<open>(x\<lbrakk>CounterpartPred F obj\<rbrakk>w|\<Gamma>) = (\<exists> o' \<in> set_option (\<Gamma> obj). x\<lbrakk>F o'\<rbrakk>w|\<Gamma>)\<close>
+    \<comment>\<open>I just assume that a sentence about an object is false if it has now counterpart.\<close>
+
+text \<open>Page 42f. introduce the idea, that there could be multiple counterpart relations
+  operational at the same time. This is virtually impossible to make precise in a formal way.
+  When exactly does the picking of the counterpart relations take place?\<close>
+
+text \<open>By the way, I also disagree with the whole argument. Lewis argues that ‘If I were you ...’
+  sentences should be interpreted as referring to worlds where ‘I’ and ‘you’ are vicariously
+  identical, but picked by different counterpart relations such that the shared counterpart
+  is similar to ‘me’ with respect to ideas and to ‘you’ with respect to predicament.
+
+  I think this is a bit of a stretch. If the teacher says to their student ‘If I were you, I'd 
+  treat my teachers with more respect.’ this definitely is not a sentence about a world where the
+  teacher and the student are the same person. Rather, one should probably understand such sentences
+  de-re in only with respect to ‘you’, that is, ‘If (the counterpart-)you would behave like
+  (the actual-world-)me, you would ...’.\<close>
+
+definition (in counterparts) disposed_to :: 
+  \<open>('o \<Rightarrow> ('a, 'o) formula) \<Rightarrow> ('o \<Rightarrow> ('a, 'o) formula) \<Rightarrow> 'o \<Rightarrow> 'world \<Rightarrow> bool\<close>
+  where
+    \<open>disposed_to test response x w \<equiv> 
+      x\<lbrakk> CounterpartPred test x \<box>\<rightarrow> CounterpartPred response x \<rbrakk>w|(initialAssignment w)\<close>
+
+
 
 end
 
