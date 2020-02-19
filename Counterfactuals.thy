@@ -151,6 +151,8 @@ proof -
     unfolding linear_order_on_def using sphere_ordering_total ..
 qed
 
+
+
 subsection \<open>Counterfactual semantics defined in terms of sphere systems (\<section> 1.3)\<close>
 
 primrec is_true_at :: \<open>('a, 'o) formula \<Rightarrow> 'world \<Rightarrow> bool\<close> (\<open>\<lbrakk> _ \<rbrakk>_\<close> [20] 55) where
@@ -166,6 +168,8 @@ primrec is_true_at :: \<open>('a, 'o) formula \<Rightarrow> 'world \<Rightarrow>
     \<open>(\<lbrakk>CounterpartPred F obj\<rbrakk>w) = \<lbrakk>F obj\<rbrakk>w\<close>
 
 lemma double_negation[simp]: \<open>(\<lbrakk>~~(~~\<phi>)\<rbrakk>w) = \<lbrakk>\<phi>\<rbrakk>w\<close> by auto
+
+lemma tarski_and[simp]: \<open>(\<lbrakk>And \<phi> \<psi>\<rbrakk>w) = ((\<lbrakk>\<phi>\<rbrakk>w) \<and> (\<lbrakk>\<psi>\<rbrakk>w))\<close> by auto
 
 abbreviation permitting_sphere :: \<open>('a, 'o) formula \<Rightarrow> 'world set \<Rightarrow> bool\<close> where
   \<open>permitting_sphere \<phi> s \<equiv> \<exists>w \<in> s. \<lbrakk>\<phi>\<rbrakk>w\<close>
@@ -365,6 +369,21 @@ next
     then show ?thesis using wellfounded_smallest_sphere using wa\<phi>\<psi> by auto
   qed
 qed
+
+
+lemma most_fitting_sphere:
+  assumes \<open>s \<in> S w\<close> \<open>w' \<in> s\<close>
+  shows \<open>\<exists> s' \<in> S w. w' \<in> s' \<and> (\<forall> s'' \<in> S w. w' \<in> s'' \<longrightarrow> s' \<subseteq> s'')\<close>
+proof -
+  have \<open>\<not>(\<forall> s' \<in> S w. w' \<in> s' \<longrightarrow> (\<exists> s'' \<in> S w. w' \<in> s'' \<and> \<not>(s' \<subseteq> s'')))\<close>
+  proof clarify
+    assume \<open>\<forall>s'\<in>S w. w' \<in> s' \<longrightarrow> (\<exists>s''\<in>S w. w' \<in> s'' \<and> \<not> s' \<subseteq> s'')\<close>
+    with assms obtain s'' where \<open>s''\<in>S w\<close> \<open>w' \<in> s''\<close> \<open>\<not> s \<subseteq> s''\<close> by blast
+    hence \<open>s'' \<subseteq> s\<close> using assms(1) sphere_system unfolding nested_spheres_def by blast
+    thus False sorry
+  qed
+  thus ?thesis by blast
+  oops
 
 end
 
@@ -762,10 +781,6 @@ definition (in counterparts) disposed_to ::
       x\<lbrakk> CounterpartPred test x \<box>\<rightarrow> CounterpartPred response x \<rbrakk>w|(initialAssignment w)\<close>
 
 
-
-end
-
-
 context counterfactuals
 begin
 subsection \<open>Comparative Similarity\<close>
@@ -778,6 +793,165 @@ abbreviation more_similar_than :: \<open>'world \<Rightarrow> 'world \<Rightarro
 
 interpretation preorder \<open>at_least_as_similar_as w\<close> \<open>more_similar_than w\<close>
   by (standard, auto, meson in_mono nested_spheres_def sphere_system)
+
+text \<open>condition 4 from p. 48 “The world \<open>i\<close> is strictly \<open>\<le>\<^sub>i-minimal\<close>”\<close>
+lemma actual_world_minimal:
+  assumes
+    \<open>centered_spheres (S w) w\<close>
+    \<open>w \<noteq> w'\<close>
+  shows
+    \<open>more_similar_than w w w'\<close>
+  using assms unfolding centered_spheres_def by fastforce
+
+text \<open>condition 5 from p. 48 “Inaccessible worlds are \<open>\<le>\<^sub>i-maximal\<close>”\<close>
+lemma inaccessible_worlds_maximal:
+  assumes
+    \<open>w_max \<notin> outermost_sphere w\<close>
+  shows
+    \<open>at_least_as_similar_as w w' w_max\<close>
+  using assms by blast
+
+
+text \<open>condition 6 from p. 48 “Accessible worlds are more similar to \<open>i\<close> than inaccessible wolrds”\<close>
+lemma accessible_worlds_more_similar_than_inaccessible:
+  assumes
+    \<open>w' \<in> outermost_sphere w\<close>
+    \<open>w_max \<notin> outermost_sphere w\<close>
+  shows
+    \<open>more_similar_than w w' w_max\<close>
+  using assms by blast
+
+lemma similarity_implies_sphere_order:
+  assumes
+    \<open>more_similar_than w w1 w2\<close>
+  shows
+    \<open>\<forall>s2 \<in> S w. w2 \<in> s2 \<longrightarrow> (\<exists>s1 \<in> S w. w1 \<in> s1 \<and> s1 \<subset> s2)\<close>
+  using assms sphere_direction
+  by (meson in_mono)
+
+lemma similarity_implies_sphere_weak_order:
+  assumes
+    \<open>at_least_as_similar_as w w1 w2\<close>
+    \<open>\<exists>s \<in> S w. w1 \<in> s \<and> w2 \<notin> s\<close>
+  shows
+    \<open>\<forall>s2 \<in> S w. w2 \<in> s2 \<longrightarrow> (\<exists>s1 \<in> S w. w1 \<in> s1 \<and> s1 \<subset> s2)\<close>
+  using assms
+  by (meson similarity_implies_sphere_order)
+
+(*lemma similarity_implies_sphere_order:
+  assumes
+    \<open>w2 \<in> outermost_sphere w\<close>
+    \<open>at_least_as_similar_as w w1 w2\<close>
+  shows
+    \<open>\<exists>s1 \<in> S w. w1 \<in> s1 \<and> (\<forall>s2 \<in> S w. w2 \<in> s2 \<longrightarrow> s1 \<subseteq> s2)\<close>
+  using assms sledgehammer
+   using nested_spheres_def sphere_system *)
+
+lemma spheres_from_similarity_order:
+    \<open>\<forall>w\<phi>. w\<phi> \<in> outermost_sphere w \<longrightarrow> 
+    {w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi>} \<in> S w\<close>
+proof (rule classical, clarify)
+  fix w\<phi> w\<phi>' s
+  assume assms:
+    \<open>w\<phi> \<in> s\<close> \<open>s \<in> S w\<close> 
+    \<open>{w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi>} \<notin> S w\<close>
+  hence \<open>\<forall>s \<in> S w. \<exists>w''.
+    w'' \<in> s \<longleftrightarrow> w'' \<notin> {w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi>}\<close>
+    by (smt antisym subsetI)
+  hence \<open>\<forall>s \<in> S w. \<exists>w''.
+    w'' \<in> s \<longleftrightarrow> (w'' \<notin> outermost_sphere w \<or> \<not>at_least_as_similar_as w w'' w\<phi>)\<close>
+    by auto
+  hence \<open>\<forall>s \<in> S w. \<exists>w'' \<in> outermost_sphere w.
+    (w'' \<in> s \<longleftrightarrow> (more_similar_than w w\<phi> w''))\<close>
+    by (metis Union_iff)
+  with assms obtain w'' where w''_spec:
+    \<open>w'' \<in> outermost_sphere w\<close>
+    \<open>w'' \<in> s \<longleftrightarrow> (more_similar_than w w\<phi> w'')\<close> by blast
+  have \<open>False\<close>
+  proof (cases \<open>w'' \<in> s\<close>)
+    case True
+    hence \<open>more_similar_than w w\<phi> w''\<close> using w''_spec by blast
+    hence \<open>\<exists>s \<in> S w. w\<phi> \<in> s \<and> w'' \<notin> s\<close> by blast
+    then show ?thesis sorry
+  next
+    case False
+    then show ?thesis sorry
+  qed
+  with assms outermost_sphere_is_sphere have
+    \<open>\<exists> w''. w'' \<in> outermost_sphere w \<and> \<not>at_least_as_similar_as w w'' w\<phi>\<close> by meson
+  hence \<open>\<exists> w''. more_similar_than w w\<phi> w''\<close> by blast
+  show \<open>{w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi>'} \<in> S w \<close> sorry
+qed
+
+lemma would_comparative_similarity_def:
+  \<open>(\<lbrakk>\<phi> \<box>\<rightarrow> \<psi>\<rbrakk>w) =
+      (\<not>permitting_sphere \<phi> (outermost_sphere w) \<or>
+      (\<exists>w\<phi> \<in> outermost_sphere w. (\<lbrakk>\<phi>\<rbrakk> w\<phi>)
+      \<and> (\<forall>w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi> \<longrightarrow> \<lbrakk>\<phi> \<rightarrow> \<psi>\<rbrakk> w')))\<close>
+proof safe
+  fix wa s
+  assume \<open>\<lbrakk> \<phi> \<box>\<rightarrow> \<psi> \<rbrakk>w\<close> \<open>wa \<in> s\<close> \<open>s \<in> S w\<close> \<open>\<lbrakk> \<phi> \<rbrakk>wa\<close>
+    \<open>\<not> (\<exists>w\<phi>\<in>outermost_sphere w. (\<lbrakk> \<phi> \<rbrakk>w\<phi>) \<and> (\<forall>w'\<in>outermost_sphere w. at_least_as_similar_as w w' w\<phi> \<longrightarrow> \<lbrakk> \<phi> \<rightarrow> \<psi> \<rbrakk>w'))\<close>
+  then show False by auto
+next
+  assume \<open>\<not> permitting_sphere \<phi> (outermost_sphere w)\<close>
+  then show \<open>\<lbrakk> \<phi> \<box>\<rightarrow> \<psi> \<rbrakk>w\<close> by auto
+next
+  fix w\<phi> s
+  assume subassms: \<open>w\<phi> \<in> s\<close> \<open>s \<in> S w\<close> \<open>\<lbrakk> \<phi> \<rbrakk>w\<phi>\<close>
+    \<open>\<forall>w'\<in>outermost_sphere w. at_least_as_similar_as w w' w\<phi> \<longrightarrow> \<lbrakk> \<phi> \<rightarrow> \<psi> \<rbrakk>w'\<close>
+  then have \<open>w\<phi> \<in> outermost_sphere w\<close> by blast
+  from subassms have
+    \<open>permitting_sphere \<phi> {w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi>}
+    \<and> (\<forall>ws\<in>{w' \<in> outermost_sphere w. at_least_as_similar_as w w' w\<phi>}. (\<lbrakk> \<phi> \<rbrakk>ws) \<longrightarrow> \<lbrakk> \<psi> \<rbrakk>ws)\<close>
+    by auto
+  with spheres_from_similarity_order \<open>w\<phi> \<in> outermost_sphere w\<close> show
+    \<open>\<lbrakk> \<phi> \<box>\<rightarrow> \<psi> \<rbrakk>w\<close> by (meson is_true_at.simps(4))
+qed
+
+subsection \<open>Comparative Possibility\<close>
+
+
+definition At_least_as_possible ::
+  \<open>('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula \<Rightarrow> ('aa, 'oo) formula\<close> (\<open>_ \<preceq> _\<close> 23)
+  where [simp]: \<open>\<phi> \<preceq> \<psi> \<equiv> ((Or \<phi> \<psi>) \<diamond>\<Rightarrow> \<phi>)\<close>
+
+lemma At_least_as_possible_ext_def:
+  \<open>(\<lbrakk>\<phi> \<preceq> \<psi>\<rbrakk>w) = (\<forall>s \<in> S w. permitting_sphere \<psi> s \<longrightarrow> permitting_sphere \<phi> s)\<close>
+  by auto
+
+
+end
+
+definition system_of_semi_future_spheres :: \<open>(('w::linorder) \<Rightarrow> 'w set set) \<Rightarrow> bool\<close> where
+  \<open>system_of_semi_future_spheres S \<equiv> \<forall>w. S w = {{w .. t}|t. w \<le> t} \<union> {{w ..< t}|t. w < t} \<union> {{w ..}}\<close>
+
+locale counterfactuals_time = counterfactuals S
+  for S :: \<open>('w::linorder) \<Rightarrow> 'w set set\<close> +
+  assumes semi_future: \<open>system_of_semi_future_spheres S\<close>
+begin
+
+lemma temporal_globally: \<open>(\<lbrakk>\<box> \<phi>\<rbrakk>t) = (\<forall>t' \<ge> t. \<lbrakk>\<phi>\<rbrakk>t')\<close>
+  using semi_future unfolding system_of_semi_future_spheres_def Necessary_ext_def by auto
+
+lemma temporal_eventually: \<open>(\<lbrakk>\<diamond> \<phi>\<rbrakk>t) = (\<exists>t' \<ge> t. \<lbrakk>\<phi>\<rbrakk>t')\<close>
+  using semi_future unfolding system_of_semi_future_spheres_def Possibly_ext_def by auto
+
+lemma temporal_before:
+  \<open>(\<lbrakk>\<psi> \<preceq> \<phi>\<rbrakk>t) = 
+    (\<forall>t'. t \<le> t' \<and> (\<lbrakk>\<phi>\<rbrakk>t') \<longrightarrow> (\<exists>t''. t \<le> t'' \<and> t'' \<le> t' \<and> (\<lbrakk>\<psi>\<rbrakk>t'')))\<close>
+  using semi_future unfolding system_of_semi_future_spheres_def At_least_as_possible_ext_def
+  apply auto defer 
+  apply (meson atLeastAtMost_iff order.trans) 
+   apply (meson atLeastLessThan_iff le_less_trans)
+(*sledgehammer*)
+
+\<comment>\<open>This, presumably, cannot be true\<close>
+lemma temporal_until: 
+  \<open>(\<lbrakk>And (\<psi> \<preceq> ~~\<phi>) (\<diamond> \<psi>)\<rbrakk>t) = 
+  (\<exists>t' \<ge> t. (\<lbrakk>\<phi>\<rbrakk>t') \<and> (\<forall>t''. t \<le> t'' \<and> t'' < t' \<longrightarrow> (\<lbrakk>\<psi>\<rbrakk>t'')))\<close>
+  unfolding tarski_and temporal_eventually 
+
 
 end
 
@@ -793,6 +967,9 @@ abbreviation more_similar_than_c
 
 interpretation preorder \<open>at_least_as_similar_as_c\<close> \<open>more_similar_than_c\<close>
   by (standard, auto, meson in_mono nested_spheres_def sphere_system)
+
+
+
 end
 
 end
