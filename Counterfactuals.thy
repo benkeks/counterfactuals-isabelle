@@ -285,9 +285,9 @@ begin
 lemma wellfounded_smallest_sphere:
   assumes
     some_sphere: \<open>permitting_sphere \<phi> s\<close>  \<open>s \<in> S w\<close>
-  shows 
+  shows
     \<open>smallest_sphere w \<phi> \<in> S w \<and> permitting_sphere \<phi> (smallest_sphere w \<phi>) \<and>
-      (\<forall>s' \<in> S w. permitting_sphere \<phi> s' \<longrightarrow> (smallest_sphere w \<phi>) \<subseteq> s')\<close> 
+      (\<forall>s' \<in> S w. permitting_sphere \<phi> s' \<longrightarrow> (smallest_sphere w \<phi>) \<subseteq> s')\<close>
 proof -
   from some_sphere have smallest_sphere_some:
       \<open>smallest_sphere w \<phi> = (SOME s. s \<in> S w \<and>
@@ -920,8 +920,9 @@ lemma At_least_as_possible_ext_def:
   \<open>(\<lbrakk>\<phi> \<preceq> \<psi>\<rbrakk>w) = (\<forall>s \<in> S w. permitting_sphere \<psi> s \<longrightarrow> permitting_sphere \<phi> s)\<close>
   by auto
 
-
 end
+
+subsection \<open>Temporal logics\<close>
 
 definition system_of_semi_future_spheres :: \<open>(('w::linorder) \<Rightarrow> 'w set set) \<Rightarrow> bool\<close> where
   \<open>system_of_semi_future_spheres S \<equiv> \<forall>w. S w = {{w .. t}|t. w \<le> t} \<union> {{w ..< t}|t. w < t} \<union> {{w ..}}\<close>
@@ -931,6 +932,12 @@ locale counterfactuals_time = counterfactuals S
   assumes semi_future: \<open>system_of_semi_future_spheres S\<close>
 begin
 
+lemma temporal_centered_spheres:
+  shows \<open>centered_spheres (S t) t\<close>
+  using semi_future
+  unfolding system_of_semi_future_spheres_def centered_spheres_def
+  by (auto, metis atLeastAtMost_singleton order_refl)
+
 lemma temporal_globally: \<open>(\<lbrakk>\<box> \<phi>\<rbrakk>t) = (\<forall>t' \<ge> t. \<lbrakk>\<phi>\<rbrakk>t')\<close>
   using semi_future unfolding system_of_semi_future_spheres_def Necessary_ext_def by auto
 
@@ -938,19 +945,87 @@ lemma temporal_eventually: \<open>(\<lbrakk>\<diamond> \<phi>\<rbrakk>t) = (\<ex
   using semi_future unfolding system_of_semi_future_spheres_def Possibly_ext_def by auto
 
 lemma temporal_before:
-  \<open>(\<lbrakk>\<psi> \<preceq> \<phi>\<rbrakk>t) = 
-    (\<forall>t'. t \<le> t' \<and> (\<lbrakk>\<phi>\<rbrakk>t') \<longrightarrow> (\<exists>t''. t \<le> t'' \<and> t'' \<le> t' \<and> (\<lbrakk>\<psi>\<rbrakk>t'')))\<close>
-  using semi_future unfolding system_of_semi_future_spheres_def At_least_as_possible_ext_def
-  apply auto defer 
-  apply (meson atLeastAtMost_iff order.trans) 
-   apply (meson atLeastLessThan_iff le_less_trans)
-(*sledgehammer*)
+  \<open>(\<lbrakk>\<phi> \<preceq> \<psi>\<rbrakk>t) = 
+    (\<forall>t'. (t \<le> t' \<and> \<lbrakk>\<psi>\<rbrakk>t') \<longrightarrow> (\<exists>t''. t \<le> t'' \<and> t'' \<le> t' \<and> (\<lbrakk>\<phi>\<rbrakk>t'')))\<close>
+proof safe
+  fix t'
+  assume assms: \<open>\<lbrakk> \<phi> \<preceq> \<psi> \<rbrakk>t\<close> \<open>t \<le> t'\<close> \<open>\<lbrakk> \<psi> \<rbrakk>t'\<close>
+  hence \<open>permitting_sphere \<psi> {t..t'}\<close> using atLeastAtMost_iff by blast
+  moreover have \<open>{t..t'} \<in> S t\<close>
+    using semi_future assms(2) unfolding system_of_semi_future_spheres_def by blast
+  ultimately have \<open>permitting_sphere \<phi> {t..t'}\<close>
+    using assms(1) unfolding At_least_as_possible_ext_def by blast
+  thus \<open>\<exists>t''\<ge>t. t'' \<le> t' \<and> \<lbrakk> \<phi> \<rbrakk>t''\<close> by auto
+next
+  assume \<open>\<forall>t'. (t \<le> t' \<and> \<lbrakk> \<psi> \<rbrakk>t') \<longrightarrow> (\<exists>t''\<ge>t. t'' \<le> t' \<and> \<lbrakk> \<phi> \<rbrakk>t'')\<close>
+  thus \<open>\<lbrakk> \<phi> \<preceq> \<psi> \<rbrakk>t\<close>
+    using semi_future unfolding system_of_semi_future_spheres_def At_least_as_possible_ext_def
+    by (auto, meson atLeastAtMost_iff order_trans, meson atLeastLessThan_iff le_less_trans)
+qed
 
-\<comment>\<open>This, presumably, cannot be true\<close>
-lemma temporal_until: 
-  \<open>(\<lbrakk>And (\<psi> \<preceq> ~~\<phi>) (\<diamond> \<psi>)\<rbrakk>t) = 
-  (\<exists>t' \<ge> t. (\<lbrakk>\<phi>\<rbrakk>t') \<and> (\<forall>t''. t \<le> t'' \<and> t'' < t' \<longrightarrow> (\<lbrakk>\<psi>\<rbrakk>t'')))\<close>
-  unfolding tarski_and temporal_eventually 
+end
+
+
+locale counterfactuals_discrete_time =
+  counterfactuals_time + counterfactuals_limit_assumption
+begin
+
+lemma end_of_time_trimmable:
+  assumes
+    \<open>{t .. t'} \<in> S t\<close>
+  shows
+    \<open>{t ..< t'} \<in> S t\<close>
+  using assms wf_spheres semi_future unfolding system_of_semi_future_spheres_def
+  sorry
+  
+
+lemma temporal_until:
+  assumes
+    \<open>(\<lbrakk>And (\<phi> \<preceq> ~~\<psi>) (\<diamond> \<phi>)\<rbrakk>t)\<close>
+  shows
+    \<open>\<exists>t' \<ge> t. (\<lbrakk>\<phi>\<rbrakk>t') \<and> (\<forall>t''. t \<le> t'' \<and> t'' < t' \<longrightarrow> (\<lbrakk>\<psi>\<rbrakk>t''))\<close>
+proof -
+  from assms obtain t\<phi> where \<open>t\<phi> \<ge> t\<close> \<open>\<lbrakk>\<phi>\<rbrakk>t\<phi>\<close>
+    unfolding tarski_and temporal_eventually by blast
+  hence t\<phi>_spec2: \<open>permitting_sphere \<phi> {t..t\<phi>} \<and> {t..t\<phi>} \<in> S t\<close>
+    using semi_future unfolding system_of_semi_future_spheres_def
+    by auto
+  hence first: \<open>smallest_sphere t \<phi> \<in> S t \<and> permitting_sphere \<phi> (smallest_sphere t \<phi>) \<and>
+      (\<forall>t'' \<in> S t. permitting_sphere \<phi> t'' \<longrightarrow> (smallest_sphere t \<phi>) \<subseteq> t'')\<close>
+    using wellfounded_smallest_sphere by blast
+  hence \<open>smallest_sphere t \<phi> \<subseteq> {t..t\<phi>}\<close>
+    using t\<phi>_spec2 by blast
+  hence \<open>smallest_sphere t \<phi> = {t..} \<Longrightarrow> smallest_sphere t \<phi> = {t..t\<phi>}\<close> by auto
+  hence \<open>\<exists>t'. smallest_sphere t \<phi> = {t..t'} \<or> smallest_sphere t \<phi> = {t ..< t'}\<close>
+    using semi_future first unfolding system_of_semi_future_spheres_def by auto
+  then obtain t' where t'_spec:
+    \<open>smallest_sphere t \<phi> = {t..t'} \<or> smallest_sphere t \<phi> = {t ..< t'}\<close> by blast
+  hence \<open>\<forall>s \<in> S t. s \<subset> {t .. t'} \<longrightarrow> \<not>permitting_sphere \<phi> s\<close>
+    using first
+    sorry
+    (* {t ..< t'} by (smt Diff_empty Diff_insert0 atLeastLessThan_eq_atLeastAtMost_diff
+         insert_Diff insert_subset psubsetE)*)
+  hence \<open>\<forall>s \<in> S t. s \<subset> {t .. t'} \<longrightarrow> \<not>permitting_sphere (~~\<psi>) s\<close>
+    using assms unfolding tarski_and At_least_as_possible_ext_def by blast
+  hence \<open>\<forall>s \<in> S t. s \<subseteq> {t ..< t'} \<longrightarrow> \<not>permitting_sphere (~~\<psi>) s\<close>
+    by (smt Diff_subset atLeastAtMost_iff atLeastLessThan_eq_atLeastAtMost_diff atLeastLessThan_iff atLeastatMost_psubset_iff order_refl order_trans psubsetI subset_antisym)
+  moreover have \<open>{t ..< t'} \<in> S t\<close>
+    using first t'_spec end_of_time_trimmable by auto
+  ultimately have \<open>\<not>permitting_sphere (~~\<psi>) {t ..< t'}\<close> by blast
+  hence \<open>(\<forall>t''. t \<le> t'' \<and> t'' < t' \<longrightarrow> \<lbrakk> \<psi> \<rbrakk>t'')\<close> by auto
+  moreover have \<open>\<lbrakk>\<phi>\<rbrakk>t'\<close>
+    using first
+    by (smt Diff_subset \<open>\<forall>s\<in>S t. s \<subset> {t..t'} \<longrightarrow> \<not> permitting_sphere \<phi> s\<close> \<open>{t..<t'} \<in> S t\<close> atLeastAtMost_iff atLeastLessThan_eq_atLeastAtMost_diff atLeastLessThan_iff atLeastatMost_empty_iff empty_iff le_less not_le sphere_direction t'_spec)
+  moreover have \<open>t' \<ge> t\<close>
+    using first t'_spec by force
+  ultimately show ?thesis
+    by blast
+qed
+
+end
+
+
+
 
 
 end
